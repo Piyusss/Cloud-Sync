@@ -9,7 +9,7 @@ import * as api from '../api';
 vi.mock('../api', () => ({
   publicShareApi: {
     info: vi.fn(),
-    downloadBlob: vi.fn(),
+    download: vi.fn(),
   },
 }));
 
@@ -18,7 +18,7 @@ vi.mock('../utils/format', async (importOriginal) => {
   return {
     ...actual,
     formatBytes: (n: number) => `${n} B`,
-    triggerBlobDownload: vi.fn(),
+    triggerUrlDownload: vi.fn(),
   };
 });
 
@@ -88,7 +88,7 @@ describe('SharePage', () => {
 
   it('shows wrong-password error after a failed 403 download attempt', async () => {
     vi.mocked(api.publicShareApi.info).mockResolvedValue({ data: passwordProtectedInfo } as any);
-    vi.mocked(api.publicShareApi.downloadBlob).mockRejectedValue({
+    vi.mocked(api.publicShareApi.download).mockRejectedValue({
       response: { status: 403, data: { message: 'Invalid password' } },
     });
 

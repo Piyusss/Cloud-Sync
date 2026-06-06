@@ -10,7 +10,7 @@ import {
 import { fileApi, folderApi, versionApi, shareApi } from '../api';
 import { chunkedUpload } from '../utils/chunkedUpload';
 import type { FileItem, FileVersion, FolderItem, ShareLink } from '../types';
-import { formatBytes, formatRelativeDate, triggerBlobDownload } from '../utils/format';
+import { formatBytes, formatRelativeDate, triggerUrlDownload } from '../utils/format';
 import { FileIcon } from '../components/FileIcon';
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -134,8 +134,9 @@ export function FilesPage() {
 
     setPreviewLoading(true);
     fileApi.download(previewFile.id)
-      .then((res) => {
-        const blob = res.data as Blob;
+      .then((res) => fetch(res.data.url))
+      .then((r) => r.blob())
+      .then((blob) => {
         if (ct.startsWith('text/')) {
           blob.text().then((text) => {
             setPreviewText(text);
@@ -358,8 +359,8 @@ export function FilesPage() {
   };
 
   const handleDownload = async (file: FileItem) => {
-    const response = await fileApi.download(file.id);
-    triggerBlobDownload(response.data as Blob, file.name);
+    const { data } = await fileApi.download(file.id);
+    triggerUrlDownload(data.url);
   };
 
   const submitNewFolder = () => {

@@ -17,19 +17,8 @@ export const fileApi = {
   list: (folderId?: string) =>
     api.get<FileItem[]>('/files', { params: folderId ? { folderId } : {} }),
 
-  upload: (formData: FormData, onProgress?: (progress: number) => void, signal?: AbortSignal) =>
-    api.post<FileItem>('/files/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      signal,
-      onUploadProgress: (event) => {
-        if (event.total && onProgress) {
-          onProgress(Math.round((event.loaded * 100) / event.total));
-        }
-      },
-    }),
-
   download: (fileId: string) =>
-    api.get(`/files/${fileId}/download`, { responseType: 'blob' }),
+    api.get<{ url: string }>(`/files/${fileId}/download`),
 
   rename: (fileId: string, name: string) =>
     api.patch<FileItem>(`/files/${fileId}`, { name }),
@@ -59,14 +48,7 @@ export const chunkApi = {
     data: { fileName: string; fileSize: number; totalChunks: number; contentType: string; folderId?: string; hash?: string | null },
     signal?: AbortSignal
   ) =>
-    api.post<{ uploadId?: string; uploadedChunks: number[]; duplicate: boolean; fileItem?: FileItem }>('/chunks/init', data, { signal }),
-
-  uploadChunk: (uploadId: string, formData: FormData, signal?: AbortSignal) =>
-    api.post<{ chunkIndex: number; received: boolean }>(
-      `/chunks/${uploadId}/chunk`,
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' }, signal }
-    ),
+    api.post<{ uploadId?: string; key?: string; parts?: { partNumber: number; url: string }[]; duplicate: boolean; fileItem?: FileItem }>('/chunks/init', data, { signal }),
 
   status: (uploadId: string) =>
     api.get<{ uploadId: string; fileName: string; fileSize: number; totalChunks: number; uploadedChunks: number[]; status: string }>(
@@ -132,10 +114,9 @@ export const publicShareApi = {
   info: (token: string) =>
     publicApi.get<PublicFileInfo>(`/share/${token}`),
 
-  downloadBlob: (token: string, password?: string) =>
-    publicApi.get<Blob>(`/share/${token}/download`, {
+  download: (token: string, password?: string) =>
+    publicApi.get<{ url: string; fileName: string }>(`/share/${token}/download`, {
       params: password ? { password } : {},
-      responseType: 'blob',
     }),
 };
 

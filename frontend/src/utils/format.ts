@@ -55,3 +55,17 @@ export function triggerBlobDownload(blob: Blob, fileName: string): void {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Navigate to a presigned download URL. The URL carries a
+ * `Content-Disposition: attachment` header, so the browser downloads it
+ * with the correct filename instead of navigating away.
+ */
+export function triggerUrlDownload(url: string): void {
+  const a = document.createElement('a');
+  a.href = url;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}

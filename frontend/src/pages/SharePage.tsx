@@ -5,7 +5,7 @@ import {
   Download, Loader2, Lock, AlertCircle,
 } from 'lucide-react';
 import { publicShareApi } from '../api';
-import { formatBytes, triggerBlobDownload } from '../utils/format';
+import { formatBytes, triggerUrlDownload } from '../utils/format';
 import { FileIcon } from '../components/FileIcon';
 
 export function SharePage() {
@@ -28,11 +28,11 @@ export function SharePage() {
     setDownloading(true);
     setDownloadError('');
     try {
-      const resp = await publicShareApi.downloadBlob(
+      const resp = await publicShareApi.download(
         token!,
         info?.passwordProtected ? password : undefined
       );
-      triggerBlobDownload(resp.data, info?.fileName ?? 'download');
+      triggerUrlDownload(resp.data.url);
     } catch (err: unknown) {
       const e = err as { response?: { status?: number; data?: { message?: string } } };
       if (e.response?.status === 403) {

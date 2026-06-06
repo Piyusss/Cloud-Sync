@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { fileApi, searchApi } from '../api';
 import type { SearchResult } from '../types';
-import { formatBytes, formatRelativeDate, triggerBlobDownload } from '../utils/format';
+import { formatBytes, formatRelativeDate, triggerUrlDownload } from '../utils/format';
 import { FileIcon } from '../components/FileIcon';
 
 // ── type filter options ───────────────────────────────────────────────────────
@@ -61,8 +61,8 @@ export function SearchPage() {
   });
 
   const handleDownload = async (result: SearchResult) => {
-    const response = await fileApi.download(result.id);
-    triggerBlobDownload(response.data as Blob, result.name);
+    const { data } = await fileApi.download(result.id);
+    triggerUrlDownload(data.url);
   };
 
   const clearAll = () => { setQ(''); setType(''); setFrom(''); setTo(''); };
