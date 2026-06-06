@@ -2,9 +2,9 @@ package com.cloudsync.file;
 
 import com.cloudsync.analytics.ActivityService;
 import com.cloudsync.common.NotFoundException;
-import com.cloudsync.common.StorageQuotaException;
 import com.cloudsync.folder.FolderRepository;
 import com.cloudsync.notification.NotificationService;
+import com.cloudsync.storage.StorageService;
 import com.cloudsync.user.User;
 import com.cloudsync.user.UserService;
 import org.springframework.cache.Cache;
@@ -12,17 +12,11 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
-import io.minio.GetObjectArgs;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -41,72 +35,26 @@ public class FileService {
     private final ActivityService activityService;
     private final NotificationService notificationService;
     private final CacheManager cacheManager;
-    private final MinioClient minioClient;
+    private final StorageService storageService;
 
-    @Value("${minio.bucket}")
-    private String bucket;
+    // ── Finalise a direct (multipart) upload — register storage + metadata ────
 
-    // ── Single-part upload ────────────────────────────────────────────────────
-
+    /**
+     * Called by ChunkUploadService.complete() AFTER the object has been assembled
+     * in storage. Registers the physical file (for dedup) and writes file/version
+     * rows in a single short transaction. No storage I/O happens here.
+     */
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = "files",     key = "#userId + ':' + (#folderId ?: 'root')"),
-        @CacheEvict(value = "files-all", key = "#userId")
-    })
-    public FileDto upload(MultipartFile file, UUID userId, UUID folderId, String hash) {
-        String name = file.getOriginalFilename() != null ? file.getOriginalFilename() : "untitled";
-        String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
-
-        Optional<FileEntity> existing = findExisting(userId, name, folderId);
-
-        // Check deduplication before touching MinIO
-        if (hash != null) {
-            Optional<PhysicalFileEntity> physical = physicalFileRepository.findByHash(hash);
-            if (physical.isPresent()) {
-                PhysicalFileEntity pf = physical.get();
-                pf.setRefCount(pf.getRefCount() + 1);
-                physicalFileRepository.save(pf);
-                // Create metadata only — no MinIO upload
-                return createOrUpdateFile(name, file.getSize(), contentType, folderId, userId,
-                        pf.getStorageKey(), pf.getId(), true, existing);
-            }
-        }
-
-        // No dedup match — check storage limit and upload
-        long delta = existing.map(e -> file.getSize() - e.getSize()).orElse(file.getSize());
-        User user = userService.findById(userId);
-        if (delta > 0 && user.getStorageUsed() + delta > user.getStorageLimit()) {
-            throw new StorageQuotaException("Storage limit exceeded. Available: "
-                    + (user.getStorageLimit() - user.getStorageUsed()) + " bytes");
-        }
-
-        String storageKey = userId + "/" + UUID.randomUUID();
-        try {
-            minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(bucket).object(storageKey)
-                    .stream(file.getInputStream(), file.getSize(), -1)
-                    .contentType(contentType).build());
-        } catch (Exception e) {
-            log.error("MinIO upload failed for user {}: {}", userId, e.getMessage());
-            throw new RuntimeException("Failed to upload file: " + e.getMessage());
-        }
-
-        // Register new physical file
+    public FileDto finalizeUpload(String name, long size, String contentType, UUID folderId,
+                                  UUID userId, String storageKey, String hash) {
         UUID physicalFileId = null;
         if (hash != null) {
             PhysicalFileEntity pf = physicalFileRepository.save(PhysicalFileEntity.builder()
-                    .hash(hash).size(file.getSize()).storageKey(storageKey).build());
+                    .hash(hash).size(size).storageKey(storageKey).build());
             physicalFileId = pf.getId();
         }
-
-        FileDto result = createOrUpdateFile(name, file.getSize(), contentType, folderId, userId,
-                storageKey, physicalFileId, false, existing);
-        activityService.log(userId, ActivityService.UPLOAD, name, file.getSize());
-        notificationService.send(userId, NotificationService.UPLOAD_COMPLETE,
-                "Upload complete", name + " has been uploaded successfully.",
-                result.getId().toString(), name);
-        checkStorageWarning(userId);
-        return result;
+        return createOrUpdateFile(name, size, contentType, folderId, userId,
+                storageKey, physicalFileId, false);
     }
 
     @Transactional
@@ -223,19 +171,13 @@ public class FileService {
                 .orElseThrow(() -> new NotFoundException("File not found")));
     }
 
-    // ── Download ─────────────────────────────────────────────────────────────
+    // ── Download — presigned GET URL (bytes go straight from storage) ─────────
 
-    public InputStream download(UUID fileId, UUID userId) {
+    public String download(UUID fileId, UUID userId) {
         FileEntity file = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
                 .orElseThrow(() -> new NotFoundException("File not found"));
         activityService.log(userId, ActivityService.DOWNLOAD, file.getName(), file.getSize());
-        try {
-            return minioClient.getObject(GetObjectArgs.builder()
-                    .bucket(bucket).object(file.getStorageKey()).build());
-        } catch (Exception e) {
-            log.error("MinIO download failed for file {}: {}", fileId, e.getMessage());
-            throw new RuntimeException("Failed to download file: " + e.getMessage());
-        }
+        return storageService.presignGet(file.getStorageKey(), file.getName(), file.getContentType());
     }
 
     // ── Delete ───────────────────────────────────────────────────────────────
@@ -284,7 +226,7 @@ public class FileService {
      * Programmatic eviction used inside this bean (self-calls bypass AOP proxy).
      * Spring Cache stores keys as the evaluated SpEL String, so we reproduce it.
      */
-    private void checkStorageWarning(UUID userId) {
+    public void checkStorageWarning(UUID userId) {
         try {
             User u = userService.findById(userId);
             if (u.getStorageLimit() > 0) {

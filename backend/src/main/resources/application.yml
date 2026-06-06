@@ -44,9 +44,11 @@ spring:
           jwk-set-uri: ${CLERK_JWKS_URI}
 
   servlet:
+    # File bytes no longer pass through the app (direct browser <-> storage transfer),
+    # so multipart bodies stay small. Bump only if you reintroduce server-side uploads.
     multipart:
-      max-file-size: ${MAX_FILE_SIZE:2GB}
-      max-request-size: ${MAX_FILE_SIZE:2GB}
+      max-file-size: ${MAX_FILE_SIZE:10MB}
+      max-request-size: ${MAX_FILE_SIZE:10MB}
 
 # Object storage — S3-compatible (local MinIO by default; Backblaze B2 in production)
 minio:
@@ -55,6 +57,10 @@ minio:
   secret-key: ${STORAGE_SECRET_KEY:minioadmin123}
   bucket: ${STORAGE_BUCKET:cloudsync}
   region: ${STORAGE_REGION:us-east-1}
+
+# Presigned-URL lifetime (minutes) for direct browser <-> storage transfers
+storage:
+  presign-ttl-minutes: ${PRESIGN_TTL:360}
 
 # CORS — comma-separated list of allowed frontend origins
 cors:

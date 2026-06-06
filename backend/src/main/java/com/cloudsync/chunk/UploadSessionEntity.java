@@ -40,6 +40,10 @@ public class UploadSessionEntity {
     @Column(name = "storage_key", nullable = false)
     private String storageKey;
 
+    /** Storage-side multipart upload id (from CreateMultipartUpload). */
+    @Column(name = "s3_upload_id")
+    private String s3UploadId;
+
     @Column(length = 64)
     private String hash;
 

@@ -15,9 +15,13 @@ public class InitUploadResponse {
     /** Null when the file was deduplicated (no upload needed). */
     private String uploadId;
 
-    private List<Integer> uploadedChunks;
+    /** Object key the parts are being uploaded to. Null when duplicate=true. */
+    private String key;
 
-    /** True when the server already has this exact file — no chunks needed. */
+    /** Presigned URL per part — the browser PUTs directly to storage. Empty when duplicate=true. */
+    private List<PartUrl> parts;
+
+    /** True when the server already has this exact file — no upload needed. */
     private boolean duplicate;
 
     /** Populated only when duplicate=true. */

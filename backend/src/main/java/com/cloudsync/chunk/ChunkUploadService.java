@@ -6,51 +6,42 @@ import com.cloudsync.common.NotFoundException;
 import com.cloudsync.common.StorageQuotaException;
 import com.cloudsync.notification.NotificationService;
 import com.cloudsync.file.FileDto;
-import com.cloudsync.file.FileRepository;
 import com.cloudsync.file.FileService;
 import com.cloudsync.file.PhysicalFileEntity;
 import com.cloudsync.file.PhysicalFileRepository;
+import com.cloudsync.storage.StorageService;
 import com.cloudsync.user.User;
 import com.cloudsync.user.UserService;
-import io.minio.GetObjectArgs;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
-import io.minio.RemoveObjectArgs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.SequenceInputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Coordinates direct-to-storage uploads via S3 multipart. The browser uploads
+ * parts straight to object storage using presigned URLs; this service only
+ * orchestrates (create / presign / assemble) and writes metadata. File bytes
+ * never pass through the app, and the merge happens storage-side in complete().
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ChunkUploadService {
 
     private final UploadSessionRepository sessionRepository;
-    private final UploadChunkRepository chunkRepository;
-    private final FileRepository fileRepository;
     private final FileService fileService;
     private final PhysicalFileRepository physicalFileRepository;
     private final UserService userService;
     private final ActivityService activityService;
     private final NotificationService notificationService;
-    private final MinioClient minioClient;
+    private final StorageService storageService;
 
-    @Value("${minio.bucket}")
-    private String bucket;
-
-    // ── Init ─────────────────────────────────────────────────────────────────
+    // ── Init: dedup check, else open a multipart upload and presign the parts ──
 
     @Transactional
     public InitUploadResponse init(InitUploadRequest req, UUID userId) {
@@ -73,7 +64,7 @@ public class ChunkUploadService {
                 return InitUploadResponse.builder()
                         .duplicate(true)
                         .fileItem(fileItem)
-                        .uploadedChunks(List.of())
+                        .parts(List.of())
                         .build();
             }
         }
@@ -86,68 +77,40 @@ public class ChunkUploadService {
         }
 
         String storageKey = userId + "/" + UUID.randomUUID();
+        String s3UploadId = storageService.createMultipartUpload(storageKey, req.getContentType());
 
-        UploadSessionEntity session = UploadSessionEntity.builder()
+        UploadSessionEntity session = sessionRepository.save(UploadSessionEntity.builder()
                 .userId(userId).fileName(req.getFileName()).fileSize(req.getFileSize())
                 .totalChunks(req.getTotalChunks()).contentType(req.getContentType())
                 .folderId(req.getFolderId()).storageKey(storageKey)
-                .hash(req.getHash())
-                .build();
+                .s3UploadId(s3UploadId).hash(req.getHash())
+                .build());
 
-        session = sessionRepository.save(session);
+        List<PartUrl> parts = new ArrayList<>(req.getTotalChunks());
+        for (int partNumber = 1; partNumber <= req.getTotalChunks(); partNumber++) {
+            parts.add(new PartUrl(partNumber,
+                    storageService.presignUploadPart(storageKey, s3UploadId, partNumber)));
+        }
 
         return InitUploadResponse.builder()
                 .uploadId(session.getId().toString())
-                .uploadedChunks(List.of())
+                .key(storageKey)
+                .parts(parts)
                 .duplicate(false)
                 .build();
     }
 
-    // ── Upload single chunk ───────────────────────────────────────────────────
-
-    public void uploadChunk(UUID uploadId, int chunkIndex, MultipartFile chunkData, UUID userId) {
-        UploadSessionEntity session = sessionRepository
-                .findByIdAndUserIdAndStatus(uploadId, userId, "in_progress")
-                .orElseThrow(() -> new NotFoundException("Upload session not found or already completed"));
-
-        if (chunkIndex < 0 || chunkIndex >= session.getTotalChunks()) {
-            throw new BadRequestException("Invalid chunk index: " + chunkIndex);
-        }
-
-        // Idempotent: skip if already received (supports retry)
-        if (chunkRepository.existsByUploadIdAndChunkIndex(uploadId, chunkIndex)) {
-            return;
-        }
-
-        String chunkKey = "uploads/" + uploadId + "/chunk_" + chunkIndex;
-
-        try {
-            minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(bucket)
-                    .object(chunkKey)
-                    .stream(chunkData.getInputStream(), chunkData.getSize(), -1)
-                    .contentType("application/octet-stream")
-                    .build());
-        } catch (Exception e) {
-            log.error("Failed to store chunk {}/{}: {}", uploadId, chunkIndex, e.getMessage());
-            throw new RuntimeException("Failed to store chunk: " + e.getMessage());
-        }
-
-        chunkRepository.save(UploadChunkEntity.builder()
-                .uploadId(uploadId)
-                .chunkIndex(chunkIndex)
-                .size(chunkData.getSize())
-                .storageKey(chunkKey)
-                .build());
-    }
-
-    // ── Status (for resume) ──────────────────────────────────────────────────
+    // ── Status (for resume) — which parts has storage already received? ───────
 
     public UploadStatusDto status(UUID uploadId, UUID userId) {
         UploadSessionEntity session = sessionRepository.findByIdAndUserId(uploadId, userId)
                 .orElseThrow(() -> new NotFoundException("Upload session not found"));
 
-        List<Integer> uploaded = chunkRepository.findUploadedChunkIndexes(uploadId);
+        List<Integer> uploaded = List.of();
+        if ("in_progress".equals(session.getStatus()) && session.getS3UploadId() != null) {
+            uploaded = storageService.listParts(session.getStorageKey(), session.getS3UploadId())
+                    .stream().map(CompletedPart::partNumber).toList();
+        }
 
         return UploadStatusDto.builder()
                 .uploadId(session.getId().toString())
@@ -159,51 +122,45 @@ public class ChunkUploadService {
                 .build();
     }
 
-    // ── Complete: merge chunks → single MinIO object → create FileEntity ─────
+    // ── Complete: assemble parts storage-side, then write metadata ────────────
+    // NOT @Transactional: the storage assembly must not hold a DB connection.
 
-    @Transactional
     public FileDto complete(UUID uploadId, UUID userId) {
         UploadSessionEntity session = sessionRepository
                 .findByIdAndUserIdAndStatus(uploadId, userId, "in_progress")
                 .orElseThrow(() -> new NotFoundException("Upload session not found or already completed"));
 
-        long received = chunkRepository.countByUploadId(uploadId);
-        if (received != session.getTotalChunks()) {
-            throw new RuntimeException(
-                    "Incomplete upload: received " + received + "/" + session.getTotalChunks() + " chunks");
+        List<CompletedPart> parts = storageService.listParts(session.getStorageKey(), session.getS3UploadId());
+        if (parts.isEmpty()) {
+            throw new BadRequestException("No uploaded parts found for this session");
+        }
+        storageService.completeMultipartUpload(session.getStorageKey(), session.getS3UploadId(), parts);
+
+        long actualSize = storageService.headObjectSize(session.getStorageKey());
+        if (actualSize != session.getFileSize()) {
+            storageService.deleteObject(session.getStorageKey());
+            throw new BadRequestException("Uploaded file is incomplete (size mismatch)");
         }
 
-        // Merge all chunks into the final storage key
-        mergeChunks(uploadId, session.getStorageKey(), session.getFileSize(),
-                session.getContentType(), session.getTotalChunks());
-
-        // Register physical file record (enables future deduplication for same content)
-        UUID physicalFileId = null;
-        if (session.getHash() != null) {
-            PhysicalFileEntity pf = physicalFileRepository.save(PhysicalFileEntity.builder()
-                    .hash(session.getHash()).size(session.getFileSize())
-                    .storageKey(session.getStorageKey()).build());
-            physicalFileId = pf.getId();
-        }
-
-        // Persist file metadata (handles versioning via FileService)
-        FileDto result = fileService.createOrUpdateFile(
-                session.getFileName(), session.getFileSize(),
-                session.getContentType(), session.getFolderId(),
-                userId, session.getStorageKey(), physicalFileId, false);
+        // Short metadata transaction (physical-file + file + version), out of the storage path.
+        FileDto result = fileService.finalizeUpload(
+                session.getFileName(), session.getFileSize(), session.getContentType(),
+                session.getFolderId(), userId, session.getStorageKey(), session.getHash());
 
         session.setStatus("completed");
         sessionRepository.save(session);
 
-        activityService.log(userId, ActivityService.UPLOAD, session.getFileName(), session.getFileSize());
+        // Post-commit side effects.
         fileService.evictFileCaches(userId, session.getFolderId());
+        activityService.log(userId, ActivityService.UPLOAD, session.getFileName(), session.getFileSize());
         notificationService.send(userId, NotificationService.UPLOAD_COMPLETE,
                 "Upload complete", session.getFileName() + " has been uploaded successfully.",
                 result.getId().toString(), session.getFileName());
+        fileService.checkStorageWarning(userId);
         return result;
     }
 
-    // ── Cancel ───────────────────────────────────────────────────────────────
+    // ── Cancel: abort the multipart upload and drop the session ───────────────
 
     @Transactional
     public void cancel(UUID uploadId, UUID userId) {
@@ -214,55 +171,14 @@ public class ChunkUploadService {
             throw new BadRequestException("Cannot cancel a completed upload");
         }
 
-        List<UploadChunkEntity> chunks = chunkRepository.findByUploadIdOrderByChunkIndexAsc(uploadId);
-        for (UploadChunkEntity chunk : chunks) {
+        if (session.getS3UploadId() != null) {
             try {
-                minioClient.removeObject(RemoveObjectArgs.builder()
-                        .bucket(bucket).object(chunk.getStorageKey()).build());
+                storageService.abortMultipartUpload(session.getStorageKey(), session.getS3UploadId());
             } catch (Exception e) {
-                log.warn("Failed to delete temp chunk {}: {}", chunk.getStorageKey(), e.getMessage());
+                log.warn("Abort multipart failed for {}: {}", uploadId, e.getMessage());
             }
         }
 
         sessionRepository.deleteById(uploadId);
-    }
-
-    // ── Merge ─────────────────────────────────────────────────────────────────
-
-    private void mergeChunks(UUID uploadId, String storageKey, long totalSize,
-                              String contentType, int totalChunks) {
-        List<InputStream> streams = new ArrayList<>();
-        try {
-            for (int i = 0; i < totalChunks; i++) {
-                String chunkKey = "uploads/" + uploadId + "/chunk_" + i;
-                streams.add(minioClient.getObject(
-                        GetObjectArgs.builder().bucket(bucket).object(chunkKey).build()));
-            }
-
-            InputStream merged = new SequenceInputStream(Collections.enumeration(streams));
-
-            minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(bucket)
-                    .object(storageKey)
-                    .stream(merged, totalSize, 10 * 1024 * 1024)
-                    .contentType(contentType)
-                    .build());
-
-        } catch (Exception e) {
-            streams.forEach(s -> { try { s.close(); } catch (IOException ignored) {} });
-            log.error("Chunk merge failed for session {}: {}", uploadId, e.getMessage());
-            throw new RuntimeException("Failed to merge chunks: " + e.getMessage());
-        }
-
-        // Delete temp chunk objects (best-effort)
-        for (int i = 0; i < totalChunks; i++) {
-            String chunkKey = "uploads/" + uploadId + "/chunk_" + i;
-            try {
-                minioClient.removeObject(
-                        RemoveObjectArgs.builder().bucket(bucket).object(chunkKey).build());
-            } catch (Exception e) {
-                log.warn("Failed to delete temp chunk {}: {}", chunkKey, e.getMessage());
-            }
-        }
     }
 }

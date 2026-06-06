@@ -6,8 +6,7 @@ import com.cloudsync.common.NotFoundException;
 import com.cloudsync.notification.NotificationService;
 import com.cloudsync.file.FileEntity;
 import com.cloudsync.file.FileRepository;
-import io.minio.GetObjectArgs;
-import io.minio.MinioClient;
+import com.cloudsync.storage.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,7 +14,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.InputStream;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -37,10 +35,7 @@ public class SharedLinkService {
     private final PasswordEncoder passwordEncoder;
     private final ActivityService activityService;
     private final NotificationService notificationService;
-    private final MinioClient minioClient;
-
-    @Value("${minio.bucket}")
-    private String bucket;
+    private final StorageService storageService;
 
     @Value("${app.share-base-url:http://localhost:5173}")
     private String shareBaseUrl;
@@ -148,14 +143,9 @@ public class SharedLinkService {
         return file;
     }
 
-    public InputStream openStream(FileEntity file) {
-        try {
-            return minioClient.getObject(
-                    GetObjectArgs.builder().bucket(bucket).object(file.getStorageKey()).build());
-        } catch (Exception e) {
-            log.error("MinIO download failed for shared file {}: {}", file.getId(), e.getMessage());
-            throw new RuntimeException("Failed to download file");
-        }
+    /** Short-lived presigned GET URL — the recipient downloads straight from storage. */
+    public String presignedUrlFor(FileEntity file) {
+        return storageService.presignGet(file.getStorageKey(), file.getName(), file.getContentType());
     }
 
     // ── Revoke ────────────────────────────────────────────────────────────────

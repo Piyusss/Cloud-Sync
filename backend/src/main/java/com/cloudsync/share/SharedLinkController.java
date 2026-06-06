@@ -2,15 +2,10 @@ package com.cloudsync.share;
 
 import com.cloudsync.file.FileEntity;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -59,26 +54,13 @@ public class SharedLinkController {
         return ResponseEntity.ok(sharedLinkService.getPublicInfo(token));
     }
 
+    /** Validates the link (password / expiry / rate limit) then returns a presigned download URL. */
     @GetMapping("/api/share/{token}/download")
-    public ResponseEntity<InputStreamResource> download(
+    public ResponseEntity<Map<String, String>> download(
             @PathVariable String token,
             @RequestParam(required = false) String password) {
         FileEntity file = sharedLinkService.validateDownload(token, password);
-
-        String encodedName = URLEncoder.encode(file.getName(), StandardCharsets.UTF_8)
-                .replace("+", "%20");
-        MediaType mediaType;
-        try {
-            mediaType = MediaType.parseMediaType(file.getContentType());
-        } catch (Exception e) {
-            mediaType = MediaType.APPLICATION_OCTET_STREAM;
-        }
-
-        return ResponseEntity.ok()
-                .contentType(mediaType)
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename*=UTF-8''" + encodedName)
-                .header(HttpHeaders.CONTENT_LENGTH, file.getSize().toString())
-                .body(new InputStreamResource(sharedLinkService.openStream(file)));
+        String url = sharedLinkService.presignedUrlFor(file);
+        return ResponseEntity.ok(Map.of("url", url, "fileName", file.getName()));
     }
 }

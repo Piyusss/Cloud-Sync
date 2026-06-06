@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 import java.util.UUID;
@@ -19,7 +18,11 @@ public class ChunkUploadController {
 
     private final ChunkUploadService chunkUploadService;
 
-    /** Start a new upload session. If the file is a duplicate, returns { duplicate:true, fileItem } immediately. */
+    /**
+     * Start an upload. If the file is a duplicate, returns { duplicate:true, fileItem }.
+     * Otherwise returns { uploadId, key, parts:[{partNumber,url}] } — the client PUTs
+     * each part directly to storage using the presigned URLs.
+     */
     @PostMapping("/init")
     public ResponseEntity<InitUploadResponse> init(
             @Valid @RequestBody InitUploadRequest request,
@@ -27,18 +30,7 @@ public class ChunkUploadController {
         return ResponseEntity.ok(chunkUploadService.init(request, userId));
     }
 
-    /** Upload one chunk. Idempotent — re-uploading the same chunkIndex is safe. */
-    @PostMapping("/{uploadId}/chunk")
-    public ResponseEntity<Map<String, Object>> uploadChunk(
-            @PathVariable UUID uploadId,
-            @RequestParam("chunkIndex") int chunkIndex,
-            @RequestParam("chunk") MultipartFile chunk,
-            @AuthenticationPrincipal UUID userId) {
-        chunkUploadService.uploadChunk(uploadId, chunkIndex, chunk, userId);
-        return ResponseEntity.ok(Map.of("chunkIndex", chunkIndex, "received", true));
-    }
-
-    /** Returns which chunks have been received — use this to resume an interrupted upload. */
+    /** Returns which parts storage has received — use this to resume an interrupted upload. */
     @GetMapping("/{uploadId}/status")
     public ResponseEntity<UploadStatusDto> status(
             @PathVariable UUID uploadId,

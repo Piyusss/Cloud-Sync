@@ -20,7 +20,20 @@
     <properties>
         <java.version>21</java.version>
         <minio.version>8.5.14</minio.version>
+        <awssdk.version>2.31.6</awssdk.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${awssdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- Spring Boot Starters -->
@@ -80,11 +93,17 @@
             <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
-        <!-- MinIO -->
+        <!-- MinIO (bucket bootstrap + scheduler deletes) -->
         <dependency>
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
             <version>${minio.version}</version>
+        </dependency>
+
+        <!-- AWS SDK v2 — S3 multipart + presigned URLs (works with MinIO / R2 / B2) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
         </dependency>
 
         <!-- Rate limiting -->
