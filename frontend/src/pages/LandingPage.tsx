@@ -526,7 +526,7 @@ export function LandingPage() {
             </p>
           </Reveal>
           <Reveal delay={160}>
-            <div className="inline-flex items-center px-3 py-1 rounded-full border border-surface-800 bg-surface-900/60 text-surface-400 text-xs font-medium mb-9 text-center max-w-xs sm:max-w-none">
+            <div className="inline-flex items-center px-3 py-1 border border-surface-800 bg-surface-900/60 text-surface-400 text-xs font-medium mb-9 text-center max-w-xs sm:max-w-none">
               <span className="sm:hidden">Educational project</span>
               <span className="hidden sm:inline">Note: This Project is made for educational purposes by Piyush Raj</span>
             </div>
