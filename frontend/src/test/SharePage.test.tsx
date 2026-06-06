@@ -13,10 +13,14 @@ vi.mock('../api', () => ({
   },
 }));
 
-vi.mock('../utils/format', () => ({
-  formatBytes: (n: number) => `${n} B`,
-  triggerBlobDownload: vi.fn(),
-}));
+vi.mock('../utils/format', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utils/format')>();
+  return {
+    ...actual,
+    formatBytes: (n: number) => `${n} B`,
+    triggerBlobDownload: vi.fn(),
+  };
+});
 
 function renderSharePage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
