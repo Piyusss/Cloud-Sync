@@ -106,22 +106,21 @@ export function SharePage() {
               className="input-field"
               autoFocus
             />
-            {downloadError ? (
+            {downloadError && (
               <p className="text-xs text-surface-300 mt-2">{downloadError}</p>
-            ) : (
-              <button
-                onClick={handleDownload}
-                disabled={downloading || !password}
-                className="btn-primary w-full mt-3 flex items-center justify-center gap-2"
-              >
-                {downloading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-                {downloading ? 'Downloading…' : 'Download'}
-              </button>
             )}
+            <button
+              onClick={handleDownload}
+              disabled={downloading || !password}
+              className="btn-primary w-full mt-3 flex items-center justify-center gap-2"
+            >
+              {downloading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              {downloading ? 'Downloading…' : 'Download'}
+            </button>
           </div>
         ) : (
           <div className="mt-6">
