@@ -4,11 +4,11 @@ import {
   Share2, Link as LinkIcon, Copy, Check, Trash2, Lock, Loader2,
 } from 'lucide-react';
 import { shareApi } from '../api';
-import type { ShareLink } from '../types';
+import type { ShareLinkWithFile } from '../types';
 import { formatBytes, formatRelativeDate } from '../utils/format';
 import { FileIcon } from '../components/FileIcon';
 
-function isExpired(link: ShareLink): boolean {
+function isExpired(link: ShareLinkWithFile): boolean {
   return !!link.expiresAt && new Date(link.expiresAt).getTime() < Date.now();
 }
 
@@ -17,7 +17,7 @@ export function SharedPage() {
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
 
-  const { data: links = [], isLoading } = useQuery({
+  const { data: links = [], isLoading } = useQuery<ShareLinkWithFile[]>({
     queryKey: ['shares-all'],
     queryFn: () => shareApi.listAll().then((r) => r.data),
   });
@@ -63,7 +63,7 @@ export function SharedPage() {
         </div>
       ) : (
         <div className="glass-card divide-y divide-surface-800/70">
-          {(links as ShareLink[]).map((link) => {
+          {links.map((link) => {
             const expired = isExpired(link);
             return (
               <div key={link.id} className="px-4 sm:px-5 py-4">

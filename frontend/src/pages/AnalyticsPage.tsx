@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { analyticsApi, jobsApi } from '../api';
 import type { ActivityItem, FileStats, JobStatus, TypeBreakdown } from '../types';
-import { formatBytes, formatRelativeDate, getFileIconType } from '../utils/format';
+import { formatBytes, formatRelativeDate } from '../utils/format';
+import { FileIcon } from '../components/FileIcon';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -49,17 +50,6 @@ const TYPE_COLORS: Record<string, string> = {
   Text:    'rgb(var(--surface-600))',
   Other:   'rgb(var(--surface-700))',
 };
-
-function FileTypeIcon({ contentType }: { contentType: string }) {
-  const t = getFileIconType(contentType);
-  const cls = 'text-surface-400 text-xs font-medium';
-  if (t === 'image')    return <span className={cls}>IMG</span>;
-  if (t === 'video')    return <span className={cls}>VID</span>;
-  if (t === 'audio')    return <span className={cls}>AUD</span>;
-  if (t === 'pdf')      return <span className={cls}>PDF</span>;
-  if (t === 'archive')  return <span className={cls}>ZIP</span>;
-  return <span className={cls}>FILE</span>;
-}
 
 // ── component ─────────────────────────────────────────────────────────────────
 
@@ -205,7 +195,7 @@ export function AnalyticsPage() {
                     i < data.largestFiles.length - 1 ? 'border-b border-surface-800/60' : ''
                   }`}
                 >
-                  <FileTypeIcon contentType={f.contentType} />
+                  <FileIcon contentType={f.contentType} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-surface-200 truncate">{f.name}</p>
                   </div>
@@ -232,7 +222,7 @@ export function AnalyticsPage() {
                     i < data.mostDownloaded.length - 1 ? 'border-b border-surface-800/60' : ''
                   }`}
                 >
-                  <FileTypeIcon contentType={f.contentType} />
+                  <FileIcon contentType={f.contentType} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-surface-200 truncate">{f.name}</p>
                   </div>

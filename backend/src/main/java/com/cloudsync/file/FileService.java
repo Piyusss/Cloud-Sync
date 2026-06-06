@@ -27,7 +27,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -210,13 +209,13 @@ public class FileService {
         List<FileEntity> files = folderId != null
                 ? fileRepository.findByUserIdAndFolderIdAndIsDeletedFalseOrderByCreatedAtDesc(userId, folderId)
                 : fileRepository.findByUserIdAndFolderIdIsNullAndIsDeletedFalseOrderByCreatedAtDesc(userId);
-        return files.stream().map(this::toDto).collect(Collectors.toList());
+        return files.stream().map(this::toDto).toList();
     }
 
     @Cacheable(value = "files-all", key = "#userId")
     public List<FileDto> listAll(UUID userId) {
         return fileRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(userId)
-                .stream().map(this::toDto).collect(Collectors.toList());
+                .stream().map(this::toDto).toList();
     }
 
     public FileDto getFile(UUID fileId, UUID userId) {

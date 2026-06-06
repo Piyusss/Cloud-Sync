@@ -50,10 +50,12 @@ export interface ShareLink {
   downloadCount: number;
   createdAt: string;
   url: string;
-  // Present only in the "all my links" / Shared-tab response
-  fileName?: string;
-  fileSize?: number;
-  contentType?: string;
+}
+
+export interface ShareLinkWithFile extends ShareLink {
+  fileName: string;
+  fileSize: number;
+  contentType: string;
 }
 
 export interface PublicFileInfo {

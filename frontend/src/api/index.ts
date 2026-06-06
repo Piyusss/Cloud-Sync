@@ -1,6 +1,6 @@
 import axios from 'axios';
 import api from './client';
-import type { AnalyticsData, FileItem, FileVersion, FolderItem, JobStatus, PublicFileInfo, SearchResult, ShareLink, TrashItem, UserDto } from '../types';
+import type { AnalyticsData, FileItem, FileVersion, FolderItem, JobStatus, PublicFileInfo, SearchResult, ShareLink, ShareLinkWithFile, TrashItem, UserDto } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 const publicApi = axios.create({ baseURL: BASE_URL });
@@ -121,7 +121,7 @@ export const shareApi = {
     api.get<ShareLink[]>(`/files/${fileId}/shares`),
 
   listAll: () =>
-    api.get<ShareLink[]>('/shares'),
+    api.get<ShareLinkWithFile[]>('/shares'),
 
   revoke: (token: string) =>
     api.delete(`/share/${token}`),

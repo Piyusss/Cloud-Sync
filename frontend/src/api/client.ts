@@ -2,6 +2,16 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
+interface ClerkSession {
+  getToken(options?: { template?: string }): Promise<string | null>;
+}
+
+declare global {
+  interface Window {
+    Clerk?: { session?: ClerkSession };
+  }
+}
+
 const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
@@ -11,7 +21,7 @@ const api = axios.create({
 // Clerk refreshes the token automatically; getToken() always returns a fresh one.
 api.interceptors.request.use(async (config) => {
   try {
-    const session = (window as any).Clerk?.session;
+    const session = window.Clerk?.session;
     let token: string | null = null;
     if (session) {
       // Prefer the custom 'cloudvault' template (adds email/fullName claims),
