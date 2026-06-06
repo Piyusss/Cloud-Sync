@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -157,13 +158,15 @@ public class FileService {
         List<FileEntity> files = folderId != null
                 ? fileRepository.findByUserIdAndFolderIdAndIsDeletedFalseOrderByCreatedAtDesc(userId, folderId)
                 : fileRepository.findByUserIdAndFolderIdIsNullAndIsDeletedFalseOrderByCreatedAtDesc(userId);
-        return files.stream().map(this::toDto).toList();
+        // Collectors.toList() returns a mutable ArrayList; Stream.toList() returns an
+        // immutable list that the Redis cache serializer cannot deserialize (-> 500).
+        return files.stream().map(this::toDto).collect(Collectors.toList());
     }
 
     @Cacheable(value = "files-all", key = "#userId")
     public List<FileDto> listAll(UUID userId) {
         return fileRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(userId)
-                .stream().map(this::toDto).toList();
+                .stream().map(this::toDto).collect(Collectors.toList());
     }
 
     public FileDto getFile(UUID fileId, UUID userId) {
