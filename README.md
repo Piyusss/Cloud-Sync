@@ -1,4 +1,4 @@
-# Cloud Sync — Cloud Storage Platform
+# Cloud Sync - Cloud Storage Platform
 
 A full-stack cloud storage platform built with React, Spring Boot, PostgreSQL, MinIO, and Redis. Features chunked/resumable uploads, file versioning, SHA-256 deduplication, secure sharing, and real-time notifications.
 
