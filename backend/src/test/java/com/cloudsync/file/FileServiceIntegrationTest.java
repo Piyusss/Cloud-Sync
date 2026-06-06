@@ -4,6 +4,7 @@ import com.cloudsync.analytics.ActivityService;
 import com.cloudsync.common.StorageQuotaException;
 import com.cloudsync.notification.NotificationService;
 import com.cloudsync.user.User;
+import com.cloudsync.user.UserRepository;
 import com.cloudsync.user.UserService;
 import io.minio.MinioClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,11 +63,14 @@ class FileServiceIntegrationTest {
     @Autowired FileService fileService;
     @Autowired FileRepository fileRepository;
     @Autowired FileVersionRepository versionRepository;
+    @Autowired UserRepository userRepository;
 
     private static final UUID USER_ID = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
+        createUser(USER_ID);
+
         User user = mock(User.class);
         lenient().when(user.getStorageUsed()).thenReturn(0L);
         lenient().when(user.getStorageLimit()).thenReturn(5_368_709_120L);
@@ -93,6 +97,7 @@ class FileServiceIntegrationTest {
     @Test
     void sameFilenameUploadedTwice_addsVersion() {
         UUID userId = UUID.randomUUID();
+        createUser(userId);
 
         FileDto v1 = fileService.createOrUpdateFile(
             "doc.txt", 512L, "text/plain", null, userId, "key/v1", null, false
@@ -109,6 +114,7 @@ class FileServiceIntegrationTest {
     @Test
     void deduplicated_doesNotUpdateStorage() {
         UUID userId = UUID.randomUUID();
+        createUser(userId);
 
         fileService.createOrUpdateFile(
             "dup.jpg", 2048L, "image/jpeg", null, userId, "key/shared", null, true
@@ -123,6 +129,7 @@ class FileServiceIntegrationTest {
         when(fullUser.getStorageUsed()).thenReturn(5_368_709_120L);
         when(fullUser.getStorageLimit()).thenReturn(5_368_709_120L);
         UUID userId = UUID.randomUUID();
+        createUser(userId);
         when(userService.findById(userId)).thenReturn(fullUser);
 
         assertThrows(StorageQuotaException.class, () ->
@@ -130,5 +137,12 @@ class FileServiceIntegrationTest {
                 "big.zip", 1_000_000L, "application/zip", null, userId, "key/big", null, false
             )
         );
+    }
+
+    private void createUser(UUID userId) {
+        userRepository.save(User.builder()
+            .id(userId)
+            .email("test-" + userId + "@example.com")
+            .build());
     }
 }

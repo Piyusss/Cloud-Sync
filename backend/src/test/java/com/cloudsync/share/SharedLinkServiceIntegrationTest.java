@@ -5,7 +5,10 @@ import com.cloudsync.common.NotFoundException;
 import com.cloudsync.file.FileEntity;
 import com.cloudsync.file.FileRepository;
 import com.cloudsync.notification.NotificationService;
+import com.cloudsync.user.User;
+import com.cloudsync.user.UserRepository;
 import io.minio.MinioClient;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,12 +24,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.NONE,
@@ -57,23 +57,44 @@ class SharedLinkServiceIntegrationTest {
     @MockBean MinioClient minioClient;
     @MockBean RedisConnectionFactory redisConnectionFactory;
     @MockBean JwtDecoder jwtDecoder;
-    @MockBean FileRepository fileRepository;
     @MockBean ActivityService activityService;
     @MockBean NotificationService notificationService;
 
     @Autowired SharedLinkService sharedLinkService;
     @Autowired SharedLinkRepository sharedLinkRepository;
+    @Autowired FileRepository fileRepository;
+    @Autowired UserRepository userRepository;
     @Autowired PasswordEncoder passwordEncoder;
+
+    private UUID sharedUserId;
+    private UUID sharedFileId;
+
+    @BeforeEach
+    void setUp() {
+        sharedUserId = UUID.randomUUID();
+        userRepository.save(User.builder()
+            .id(sharedUserId)
+            .email("test-" + sharedUserId + "@example.com")
+            .build());
+
+        FileEntity file = fileRepository.save(FileEntity.builder()
+            .userId(sharedUserId)
+            .name("test-file.txt")
+            .size(1024L)
+            .contentType("text/plain")
+            .storageKey("key/" + UUID.randomUUID())
+            .build());
+        sharedFileId = file.getId();
+    }
 
     @Test
     void expiredLink_throwsNotFoundException() {
-        SharedLinkEntity link = SharedLinkEntity.builder()
-            .fileId(UUID.randomUUID())
-            .userId(UUID.randomUUID())
+        SharedLinkEntity link = sharedLinkRepository.save(SharedLinkEntity.builder()
+            .fileId(sharedFileId)
+            .userId(sharedUserId)
             .token("expired-" + UUID.randomUUID())
             .expiresAt(LocalDateTime.now().minusHours(2))
-            .build();
-        sharedLinkRepository.save(link);
+            .build());
 
         assertThrows(NotFoundException.class, () ->
             sharedLinkService.getPublicInfo(link.getToken())
@@ -83,13 +104,12 @@ class SharedLinkServiceIntegrationTest {
     @Test
     void wrongPassword_throwsPasswordRequiredException() {
         String hash = passwordEncoder.encode("correct");
-        SharedLinkEntity link = SharedLinkEntity.builder()
-            .fileId(UUID.randomUUID())
-            .userId(UUID.randomUUID())
+        SharedLinkEntity link = sharedLinkRepository.save(SharedLinkEntity.builder()
+            .fileId(sharedFileId)
+            .userId(sharedUserId)
             .token("pw-" + UUID.randomUUID())
             .passwordHash(hash)
-            .build();
-        sharedLinkRepository.save(link);
+            .build());
 
         assertThrows(PasswordRequiredException.class, () ->
             sharedLinkService.validateDownload(link.getToken(), "wrongpassword")
@@ -98,22 +118,17 @@ class SharedLinkServiceIntegrationTest {
 
     @Test
     void correctPassword_returnsFileEntity() {
-        UUID fileId = UUID.randomUUID();
         String hash = passwordEncoder.encode("secret");
-        SharedLinkEntity link = SharedLinkEntity.builder()
-            .fileId(fileId)
-            .userId(UUID.randomUUID())
+        SharedLinkEntity link = sharedLinkRepository.save(SharedLinkEntity.builder()
+            .fileId(sharedFileId)
+            .userId(sharedUserId)
             .token("ok-" + UUID.randomUUID())
             .passwordHash(hash)
-            .build();
-        sharedLinkRepository.save(link);
-
-        FileEntity mockFile = mock(FileEntity.class);
-        when(mockFile.getIsDeleted()).thenReturn(false);
-        when(fileRepository.findById(fileId)).thenReturn(Optional.of(mockFile));
+            .build());
 
         FileEntity result = sharedLinkService.validateDownload(link.getToken(), "secret");
         assertNotNull(result);
+        assertEquals(sharedFileId, result.getId());
     }
 
     @Test
