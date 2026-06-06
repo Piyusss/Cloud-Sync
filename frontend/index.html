@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="CloudSync — Secure cloud storage with chunked uploads, file versioning, and smart deduplication." />
+    <meta name="theme-color" content="#fafafa" />
+    <title>CloudSync</title>
+    <!-- Apply the saved theme before first paint to avoid a flash.
+         Default is light (no class); dark is opt-in via the `dark` class. -->
+    <script>
+      (function () {
+        try {
+          if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

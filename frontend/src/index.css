@@ -1,0 +1,156 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Theme tokens
+   The whole UI is monochrome, so light mode is simply the *inverted* dark ramp:
+   surface-50 (lightest in dark) ↔ surface-950 (darkest), and so on. Components
+   keep using bg-surface-900 / text-surface-100 / etc. and flip automatically.
+
+     :root  → LIGHT  (default — no class needed)
+     .dark  → DARK   (opt-in, toggled by adding `dark` to <html>)
+
+   Values are "R G B" triplets consumed by rgb(var(--x) / <alpha-value>) in the
+   Tailwind config, so opacity modifiers (bg-surface-800/30) still work.
+   ──────────────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+
+  /* white token → near-black in light mode (so text-white/bg-white invert) */
+  --c-white: 10 10 10;
+
+  /* surface — inverted neutral ramp */
+  --surface-50:  10 10 10;
+  --surface-100: 23 23 23;
+  --surface-200: 38 38 38;
+  --surface-300: 64 64 64;
+  --surface-400: 82 82 82;
+  --surface-500: 115 115 115;
+  --surface-600: 163 163 163;
+  --surface-700: 212 212 212;
+  --surface-800: 229 229 229;
+  --surface-900: 245 245 245;
+  --surface-950: 250 250 250;
+
+  /* brand accent — near-black on light */
+  --brand-50:  0 0 0;
+  --brand-100: 5 5 5;
+  --brand-200: 10 10 10;
+  --brand-300: 0 0 0;
+  --brand-400: 18 18 18;
+  --brand-500: 43 43 43;
+  --brand-600: 26 26 26;
+  --brand-700: 43 43 43;
+  --brand-800: 92 92 92;
+  --brand-900: 140 140 140;
+  --brand-950: 173 173 173;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --c-white: 255 255 255;
+
+  /* surface — original neutral ramp (shadcn / Vercel "neutral") */
+  --surface-50:  250 250 250;
+  --surface-100: 245 245 245;
+  --surface-200: 229 229 229;
+  --surface-300: 212 212 212;
+  --surface-400: 163 163 163;
+  --surface-500: 115 115 115;
+  --surface-600: 82 82 82;
+  --surface-700: 64 64 64;
+  --surface-800: 38 38 38;
+  --surface-900: 23 23 23;
+  --surface-950: 10 10 10;
+
+  /* brand accent — near-white on dark */
+  --brand-50:  255 255 255;
+  --brand-100: 250 250 250;
+  --brand-200: 245 245 245;
+  --brand-300: 255 255 255;
+  --brand-400: 237 237 237;
+  --brand-500: 212 212 212;
+  --brand-600: 229 229 229;
+  --brand-700: 212 212 212;
+  --brand-800: 163 163 163;
+  --brand-900: 115 115 115;
+  --brand-950: 82 82 82;
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-surface-950 text-surface-100 font-sans antialiased;
+    min-height: 100vh;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { @apply bg-surface-900; }
+  ::-webkit-scrollbar-thumb { @apply bg-surface-700 rounded-sm; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-surface-600; }
+}
+
+@layer components {
+  /* Cards — thin border, slight radius, no heavy shadow (shadcn/Vercel) */
+  .card {
+    @apply bg-surface-900 border border-surface-800 rounded-lg;
+  }
+
+  /* Kept for backward compat with existing pages */
+  .glass-card {
+    @apply bg-surface-900 border border-surface-800 rounded-lg;
+  }
+
+  .glass-card-hover {
+    @apply bg-surface-900 border border-surface-800 rounded-lg transition-colors hover:border-surface-700;
+  }
+
+  /* Buttons */
+  /* Primary = solid accent (white on dark / near-black on light), inverted text */
+  .btn-primary {
+    @apply bg-white text-surface-950 font-medium px-4 py-2 rounded-md
+           hover:bg-surface-200 transition-colors
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  /* Secondary = transparent with a thin border (outline) */
+  .btn-secondary {
+    @apply bg-transparent text-surface-200 font-medium px-4 py-2 rounded-md
+           border border-surface-700
+           hover:bg-surface-800 hover:text-white transition-colors
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply text-surface-400 font-medium px-3 py-2 rounded-md
+           hover:bg-surface-800 hover:text-surface-100 transition-colors;
+  }
+
+  /* Inputs — minimalist bordered field, grayscale focus ring */
+  .input-field {
+    @apply w-full bg-surface-900 border border-surface-700 rounded-md px-3 py-2.5
+           text-surface-100 placeholder-surface-500 text-sm
+           focus:outline-none focus:border-surface-400 focus:ring-2 focus:ring-surface-700
+           transition-colors;
+  }
+
+  /* Nav — understated hover, subtle active state */
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm text-surface-400 font-medium
+           hover:bg-surface-800/70 hover:text-surface-100 transition-colors;
+  }
+
+  .nav-link-active {
+    @apply bg-surface-800 text-white;
+  }
+}
