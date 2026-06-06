@@ -1,4 +1,4 @@
-﻿package com.cloudsync.folder;
+package com.cloudsync.folder;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

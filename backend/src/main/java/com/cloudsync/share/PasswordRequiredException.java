@@ -1,4 +1,4 @@
-﻿package com.cloudsync.share;
+package com.cloudsync.share;
 
 public class PasswordRequiredException extends RuntimeException {
     public PasswordRequiredException(String message) {

@@ -1,4 +1,4 @@
-﻿package com.cloudsync.search;
+package com.cloudsync.search;
 
 import com.cloudsync.file.FileEntity;
 import com.cloudsync.folder.FolderRepository;

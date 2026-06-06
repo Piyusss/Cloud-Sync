@@ -1,4 +1,4 @@
-﻿package com.cloudsync.scheduler;
+package com.cloudsync.scheduler;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

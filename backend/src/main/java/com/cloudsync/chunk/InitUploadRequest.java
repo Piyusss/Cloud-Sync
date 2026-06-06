@@ -1,4 +1,4 @@
-﻿package com.cloudsync.chunk;
+package com.cloudsync.chunk;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;

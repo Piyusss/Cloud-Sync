@@ -1,4 +1,4 @@
-﻿package com.cloudsync.trash;
+package com.cloudsync.trash;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

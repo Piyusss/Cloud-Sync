@@ -1,4 +1,4 @@
-﻿package com.cloudsync.file;
+package com.cloudsync.file;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

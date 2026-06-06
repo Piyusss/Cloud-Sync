@@ -1,4 +1,4 @@
-﻿package com.cloudsync.config;
+package com.cloudsync.config;
 
 import com.cloudsync.notification.WebSocketAuthInterceptor;
 import lombok.RequiredArgsConstructor;

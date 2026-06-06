@@ -1,4 +1,4 @@
-﻿package com.cloudsync.config;
+package com.cloudsync.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;

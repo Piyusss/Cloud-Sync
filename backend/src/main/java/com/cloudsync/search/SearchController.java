@@ -1,4 +1,4 @@
-﻿package com.cloudsync.search;
+package com.cloudsync.search;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

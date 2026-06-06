@@ -1,4 +1,4 @@
-﻿package com.cloudsync.analytics;
+package com.cloudsync.analytics;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

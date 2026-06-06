@@ -1,4 +1,4 @@
-﻿package com.cloudsync.config;
+package com.cloudsync.config;
 
 import com.cloudsync.user.User;
 import com.cloudsync.user.UserService;

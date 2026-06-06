@@ -1,4 +1,4 @@
-﻿package com.cloudsync.share;
+package com.cloudsync.share;
 
 import com.cloudsync.file.FileEntity;
 import lombok.RequiredArgsConstructor;

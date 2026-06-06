@@ -1,4 +1,4 @@
-﻿package com.cloudsync.user;
+package com.cloudsync.user;
 
 import lombok.*;
 import java.time.LocalDateTime;

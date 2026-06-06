@@ -1,4 +1,4 @@
-﻿package com.cloudsync.config;
+package com.cloudsync.config;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;

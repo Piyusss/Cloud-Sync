@@ -1,4 +1,4 @@
-﻿package com.cloudsync.config;
+package com.cloudsync.config;
 
 import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;

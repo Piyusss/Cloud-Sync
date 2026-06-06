@@ -1,4 +1,4 @@
-﻿package com.cloudsync.folder;
+package com.cloudsync.folder;
 
 import jakarta.persistence.*;
 import lombok.*;

@@ -1,4 +1,4 @@
-﻿package com.cloudsync.scheduler;
+package com.cloudsync.scheduler;
 
 import com.cloudsync.file.FileVersionEntity;
 import com.cloudsync.file.PhysicalFileRepository;

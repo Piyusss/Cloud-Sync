@@ -1,4 +1,4 @@
-﻿package com.cloudsync.notification;
+package com.cloudsync.notification;
 
 import com.cloudsync.user.UserService;
 import lombok.RequiredArgsConstructor;

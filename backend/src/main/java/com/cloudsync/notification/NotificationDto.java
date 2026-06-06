@@ -1,4 +1,4 @@
-﻿package com.cloudsync.notification;
+package com.cloudsync.notification;
 
 import lombok.*;
 

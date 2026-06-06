@@ -1,4 +1,4 @@
-﻿package com.cloudsync.file;
+package com.cloudsync.file;
 
 import com.cloudsync.analytics.ActivityService;
 import com.cloudsync.notification.NotificationService;

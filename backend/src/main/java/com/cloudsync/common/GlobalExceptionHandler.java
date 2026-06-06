@@ -1,4 +1,4 @@
-﻿package com.cloudsync.common;
+package com.cloudsync.common;
 
 import com.cloudsync.share.PasswordRequiredException;
 import org.springframework.http.HttpStatus;

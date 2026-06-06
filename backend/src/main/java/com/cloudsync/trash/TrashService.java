@@ -1,4 +1,4 @@
-﻿package com.cloudsync.trash;
+package com.cloudsync.trash;
 
 import com.cloudsync.analytics.ActivityService;
 import com.cloudsync.file.FileEntity;

@@ -1,4 +1,4 @@
-﻿package com.cloudsync.file;
+package com.cloudsync.file;
 
 import lombok.*;
 

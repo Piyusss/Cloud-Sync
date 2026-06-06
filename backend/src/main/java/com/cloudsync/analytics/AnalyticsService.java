@@ -1,4 +1,4 @@
-﻿package com.cloudsync.analytics;
+package com.cloudsync.analytics;
 
 import com.cloudsync.file.FileRepository;
 import com.cloudsync.folder.FolderRepository;
