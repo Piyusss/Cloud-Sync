@@ -109,6 +109,20 @@ public class FolderService {
         folderRepository.deleteById(folderId);
     }
 
+    @Transactional
+    public FolderDto rename(UUID folderId, UUID userId, String newName) {
+        FolderEntity folder = folderRepository.findByIdAndUserId(folderId, userId)
+                .orElseThrow(() -> new RuntimeException("Folder not found"));
+        evictFolderCache(userId, folder.getParentFolderId());
+        folder.setName(newName.trim());
+        return toDtoWithCount(folderRepository.save(folder));
+    }
+
+    public List<FolderDto> listAll(UUID userId) {
+        return folderRepository.findByUserIdOrderByNameAsc(userId)
+                .stream().map(this::toDto).collect(Collectors.toList());
+    }
+
     @CacheEvict(value = "folders", key = "#userId + ':' + (#parentFolderId ?: 'root')")
     public void evictFolderCache(UUID userId, UUID parentFolderId) {
         // eviction only

@@ -31,6 +31,12 @@ export const fileApi = {
   download: (fileId: string) =>
     api.get(`/files/${fileId}/download`, { responseType: 'blob' }),
 
+  rename: (fileId: string, name: string) =>
+    api.patch<FileItem>(`/files/${fileId}`, { name }),
+
+  move: (fileId: string, folderId: string | null) =>
+    api.patch<FileItem>(`/files/${fileId}/move`, { folderId }),
+
   delete: (fileId: string) =>
     api.delete(`/files/${fileId}`),
 };
@@ -143,6 +149,12 @@ export const folderApi = {
 
   breadcrumb: (folderId: string) =>
     api.get<FolderItem[]>(`/folders/${folderId}/breadcrumb`),
+
+  rename: (folderId: string, name: string) =>
+    api.patch<FolderItem>(`/folders/${folderId}`, { name }),
+
+  listAll: () =>
+    api.get<FolderItem[]>('/folders/all'),
 
   delete: (folderId: string) =>
     api.delete(`/folders/${folderId}`),

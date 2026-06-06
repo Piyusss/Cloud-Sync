@@ -1,6 +1,7 @@
 package com.cloudsync.file;
 
 import com.cloudsync.analytics.ActivityService;
+import com.cloudsync.folder.FolderRepository;
 import com.cloudsync.notification.NotificationService;
 import com.cloudsync.user.User;
 import com.cloudsync.user.UserService;
@@ -34,6 +35,7 @@ public class FileService {
     private final FileRepository fileRepository;
     private final FileVersionRepository versionRepository;
     private final PhysicalFileRepository physicalFileRepository;
+    private final FolderRepository folderRepository;
     private final UserService userService;
     private final ActivityService activityService;
     private final NotificationService notificationService;
@@ -164,6 +166,39 @@ public class FileService {
 
             return toDto(file);
         }
+    }
+
+    // ── Rename ───────────────────────────────────────────────────────────────
+
+    @Transactional
+    public FileDto rename(UUID fileId, UUID userId, String newName) {
+        FileEntity file = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
+                .orElseThrow(() -> new RuntimeException("File not found"));
+        clearFilesCacheEntry(userId, file.getFolderId());
+        file.setName(newName.trim());
+        activityService.log(userId, ActivityService.RENAME, newName.trim(), file.getSize());
+        return toDto(fileRepository.save(file));
+    }
+
+    // ── Move ─────────────────────────────────────────────────────────────────
+
+    @Transactional
+    public FileDto move(UUID fileId, UUID userId, UUID targetFolderId) {
+        FileEntity file = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
+                .orElseThrow(() -> new RuntimeException("File not found"));
+
+        if (targetFolderId != null) {
+            folderRepository.findByIdAndUserId(targetFolderId, userId)
+                    .orElseThrow(() -> new RuntimeException("Target folder not found"));
+        }
+
+        UUID oldFolderId = file.getFolderId();
+        clearFilesCacheEntry(userId, oldFolderId);
+        file.setFolderId(targetFolderId);
+        FileEntity saved = fileRepository.save(file);
+        clearFilesCacheEntry(userId, targetFolderId);
+        activityService.log(userId, ActivityService.MOVE, file.getName(), file.getSize());
+        return toDto(saved);
     }
 
     // ── List / get ───────────────────────────────────────────────────────────

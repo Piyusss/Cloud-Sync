@@ -1,5 +1,6 @@
 package com.cloudsync.folder;
 
+import com.cloudsync.common.RenameRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -41,6 +42,19 @@ public class FolderController {
     @GetMapping("/count")
     public ResponseEntity<Map<String, Long>> count(@AuthenticationPrincipal UUID userId) {
         return ResponseEntity.ok(Map.of("count", folderService.countAll(userId)));
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<FolderDto>> listAll(@AuthenticationPrincipal UUID userId) {
+        return ResponseEntity.ok(folderService.listAll(userId));
+    }
+
+    @PatchMapping("/{folderId}")
+    public ResponseEntity<FolderDto> rename(
+            @PathVariable UUID folderId,
+            @Valid @RequestBody RenameRequest request,
+            @AuthenticationPrincipal UUID userId) {
+        return ResponseEntity.ok(folderService.rename(folderId, userId, request.getName()));
     }
 
     @DeleteMapping("/{folderId}")

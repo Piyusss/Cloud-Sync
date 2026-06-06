@@ -5,7 +5,7 @@ import {
   Upload, FolderOpen, Download, Trash2, X,
   CheckCircle, AlertCircle, Loader2,
   FolderPlus, ChevronRight, Home, Folder, History, RotateCcw,
-  Link, Copy, Check, Plus,
+  Link, Copy, Check, Plus, Pencil, Eye, FolderInput,
 } from 'lucide-react';
 import { fileApi, folderApi, versionApi, shareApi } from '../api';
 import { chunkedUpload } from '../utils/chunkedUpload';
@@ -18,7 +18,7 @@ import { FileIcon } from '../components/FileIcon';
 interface UploadItem {
   id: string;
   file: File;
-  progress: number; // -1 = hashing, 0-100 = uploading/done
+  progress: number;
   status: 'uploading' | 'done' | 'error' | 'cancelled';
   error?: string;
   controller: AbortController;
@@ -44,6 +44,21 @@ export function FilesPage() {
   // ── delete confirms ──────────────────────────────────────────────────────────
   const [deleteFolderConfirm, setDeleteFolderConfirm] = useState<string | null>(null);
   const [deleteFileConfirm, setDeleteFileConfirm] = useState<string | null>(null);
+
+  // ── rename state ─────────────────────────────────────────────────────────────
+  const [renameFile, setRenameFile] = useState<{ id: string; value: string } | null>(null);
+  const [renameFolder, setRenameFolder] = useState<{ id: string; value: string } | null>(null);
+  const renameFileInputRef = useRef<HTMLInputElement>(null);
+  const renameFolderInputRef = useRef<HTMLInputElement>(null);
+
+  // ── move state ────────────────────────────────────────────────────────────────
+  const [moveFile, setMoveFile] = useState<FileItem | null>(null);
+
+  // ── preview state ─────────────────────────────────────────────────────────────
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewText, setPreviewText] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   // ── version history ───────────────────────────────────────────────────────────
   const [versionFile, setVersionFile] = useState<FileItem | null>(null);
@@ -72,15 +87,72 @@ export function FilesPage() {
     enabled: !!folderId,
   });
 
+  const allFoldersQuery = useQuery({
+    queryKey: ['folders-all'],
+    queryFn: () => folderApi.listAll().then((r) => r.data),
+    enabled: !!moveFile,
+  });
+
   const folders: FolderItem[] = foldersQuery.data ?? [];
   const files: FileItem[] = filesQuery.data ?? [];
   const breadcrumb: FolderItem[] = breadcrumbQuery.data ?? [];
   const isLoading = foldersQuery.isLoading || filesQuery.isLoading;
 
-  // ── focus new-folder input when shown ────────────────────────────────────────
+  // ── focus effects ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (showNewFolder) newFolderInputRef.current?.focus();
   }, [showNewFolder]);
+
+  useEffect(() => {
+    if (renameFile) renameFileInputRef.current?.focus();
+  }, [renameFile]);
+
+  useEffect(() => {
+    if (renameFolder) renameFolderInputRef.current?.focus();
+  }, [renameFolder]);
+
+  // ── preview load effect ───────────────────────────────────────────────────────
+  useEffect(() => {
+    let objectUrl: string | null = null;
+
+    if (!previewFile) {
+      setPreviewUrl(null);
+      setPreviewText(null);
+      setPreviewLoading(false);
+      return;
+    }
+
+    const ct = previewFile.contentType;
+    const isPreviewable =
+      ct.startsWith('image/') ||
+      ct === 'application/pdf' ||
+      ct.startsWith('video/') ||
+      ct.startsWith('audio/') ||
+      ct.startsWith('text/');
+
+    if (!isPreviewable) return;
+
+    setPreviewLoading(true);
+    fileApi.download(previewFile.id)
+      .then((res) => {
+        const blob = res.data as Blob;
+        if (ct.startsWith('text/')) {
+          blob.text().then((text) => {
+            setPreviewText(text);
+            setPreviewLoading(false);
+          });
+        } else {
+          objectUrl = URL.createObjectURL(blob);
+          setPreviewUrl(objectUrl);
+          setPreviewLoading(false);
+        }
+      })
+      .catch(() => setPreviewLoading(false));
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [previewFile?.id]);
 
   // ── mutations ────────────────────────────────────────────────────────────────
   const createFolderMutation = useMutation({
@@ -109,6 +181,34 @@ export function FilesPage() {
       queryClient.invalidateQueries({ queryKey: ['files'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
       setDeleteFileConfirm(null);
+    },
+  });
+
+  const renameFileMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      fileApi.rename(id, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['files'] });
+      setRenameFile(null);
+    },
+  });
+
+  const renameFolderMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      folderApi.rename(id, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+      setRenameFolder(null);
+    },
+  });
+
+  const moveFileMutation = useMutation({
+    mutationFn: ({ id, targetFolderId }: { id: string; targetFolderId: string | null }) =>
+      fileApi.move(id, targetFolderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['files'] });
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+      setMoveFile(null);
     },
   });
 
@@ -485,15 +585,42 @@ export function FilesPage() {
                   }`}
                 >
                   <td className="px-5 py-3.5 min-w-0">
-                    <button
-                      onClick={() => navigate(`/files/${folder.id}`)}
-                      className="flex items-center gap-3 text-left hover:text-white transition-colors group/btn w-full min-w-0"
-                    >
-                      <Folder className="w-5 h-5 text-surface-300 shrink-0" />
-                      <span className="text-sm text-surface-200 group-hover/btn:text-white font-medium truncate">
-                        {folder.name}
-                      </span>
-                    </button>
+                    {renameFolder?.id === folder.id ? (
+                      <div className="flex items-center gap-2">
+                        <Folder className="w-5 h-5 text-surface-300 shrink-0" />
+                        <input
+                          ref={renameFolderInputRef}
+                          type="text"
+                          value={renameFolder.value}
+                          onChange={(e) => setRenameFolder({ ...renameFolder, value: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && renameFolder.value.trim()) {
+                              renameFolderMutation.mutate({ id: folder.id, name: renameFolder.value.trim() });
+                            }
+                            if (e.key === 'Escape') setRenameFolder(null);
+                          }}
+                          onBlur={() => {
+                            if (renameFolder.value.trim() && renameFolder.value !== folder.name && !renameFolderMutation.isPending) {
+                              renameFolderMutation.mutate({ id: folder.id, name: renameFolder.value.trim() });
+                            } else if (!renameFolderMutation.isPending) {
+                              setRenameFolder(null);
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex-1 min-w-0 bg-surface-800 border border-surface-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-brand-500"
+                        />
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => navigate(`/files/${folder.id}`)}
+                        className="flex items-center gap-3 text-left hover:text-white transition-colors group/btn w-full min-w-0"
+                      >
+                        <Folder className="w-5 h-5 text-surface-300 shrink-0" />
+                        <span className="text-sm text-surface-200 group-hover/btn:text-white font-medium truncate">
+                          {folder.name}
+                        </span>
+                      </button>
+                    )}
                   </td>
                   <td className="px-5 py-3.5 text-sm text-surface-500 hidden sm:table-cell">
                     {folder.itemCount ?? 0} file{(folder.itemCount ?? 0) !== 1 ? 's' : ''}
@@ -520,13 +647,22 @@ export function FilesPage() {
                           </button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => setDeleteFolderConfirm(folder.id)}
-                          className="p-2 rounded-lg text-surface-500 hover:text-white hover:bg-surface-700/50 transition-colors"
-                          title="Delete folder"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => setRenameFolder({ id: folder.id, value: folder.name })}
+                            className="p-2 rounded-lg text-surface-500 hover:text-surface-300 hover:bg-surface-700/50 transition-colors"
+                            title="Rename folder"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteFolderConfirm(folder.id)}
+                            className="p-2 rounded-lg text-surface-500 hover:text-white hover:bg-surface-700/50 transition-colors"
+                            title="Delete folder"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>
@@ -542,10 +678,40 @@ export function FilesPage() {
                   }`}
                 >
                   <td className="px-5 py-3.5 min-w-0">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <FileIcon contentType={file.contentType} className="w-5 h-5 shrink-0 text-surface-400" />
-                      <span className="text-sm text-surface-200 truncate">{file.name}</span>
-                    </div>
+                    {renameFile?.id === file.id ? (
+                      <div className="flex items-center gap-2">
+                        <FileIcon contentType={file.contentType} className="w-5 h-5 shrink-0 text-surface-400" />
+                        <input
+                          ref={renameFileInputRef}
+                          type="text"
+                          value={renameFile.value}
+                          onChange={(e) => setRenameFile({ ...renameFile, value: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && renameFile.value.trim()) {
+                              renameFileMutation.mutate({ id: file.id, name: renameFile.value.trim() });
+                            }
+                            if (e.key === 'Escape') setRenameFile(null);
+                          }}
+                          onBlur={() => {
+                            if (renameFile.value.trim() && renameFile.value !== file.name && !renameFileMutation.isPending) {
+                              renameFileMutation.mutate({ id: file.id, name: renameFile.value.trim() });
+                            } else if (!renameFileMutation.isPending) {
+                              setRenameFile(null);
+                            }
+                          }}
+                          className="flex-1 min-w-0 bg-surface-800 border border-surface-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-brand-500"
+                        />
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setPreviewFile(file)}
+                        className="flex items-center gap-3 text-left hover:text-white transition-colors group/btn w-full min-w-0"
+                        title="Preview"
+                      >
+                        <FileIcon contentType={file.contentType} className="w-5 h-5 shrink-0 text-surface-400" />
+                        <span className="text-sm text-surface-200 group-hover/btn:text-white truncate">{file.name}</span>
+                      </button>
+                    )}
                   </td>
                   <td className="px-5 py-3.5 text-sm text-surface-500 hidden sm:table-cell">
                     {formatBytes(file.size)}
@@ -555,6 +721,27 @@ export function FilesPage() {
                   </td>
                   <td className="px-5 py-3.5 shrink-0">
                     <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => setPreviewFile(file)}
+                        className="p-2 rounded-lg text-surface-500 hover:text-surface-300 hover:bg-surface-700/50 transition-colors"
+                        title="Preview"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setRenameFile({ id: file.id, value: file.name })}
+                        className="p-2 rounded-lg text-surface-500 hover:text-surface-300 hover:bg-surface-700/50 transition-colors"
+                        title="Rename"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setMoveFile(file)}
+                        className="p-2 rounded-lg text-surface-500 hover:text-surface-300 hover:bg-surface-700/50 transition-colors"
+                        title="Move to folder"
+                      >
+                        <FolderInput className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => setVersionFile(file)}
                         className="p-2 rounded-lg text-surface-500 hover:text-surface-300 hover:bg-surface-700/50 transition-colors"
@@ -610,11 +797,152 @@ export function FilesPage() {
           </table>
         </div>
       )}
+
+      {/* ── Preview Modal ──────────────────────────────────────────────── */}
+      {previewFile && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setPreviewFile(null)}
+        >
+          <div
+            className="w-full max-w-3xl bg-surface-900 border border-surface-700 rounded-lg shadow-xl mx-4 max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-surface-800 shrink-0">
+              <div className="min-w-0 flex items-center gap-3">
+                <FileIcon contentType={previewFile.contentType} className="w-5 h-5 text-surface-400 shrink-0" />
+                <p className="text-sm font-medium text-white truncate">{previewFile.name}</p>
+                <span className="text-xs text-surface-500 shrink-0">{formatBytes(previewFile.size)}</span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0 ml-3">
+                <button
+                  onClick={() => handleDownload(previewFile)}
+                  className="p-1.5 rounded text-surface-500 hover:text-white hover:bg-surface-800 transition-colors"
+                  title="Download"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setPreviewFile(null)}
+                  className="p-1.5 rounded text-surface-500 hover:text-white hover:bg-surface-800 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto p-4 flex items-center justify-center min-h-[300px]">
+              {previewLoading ? (
+                <Loader2 className="w-6 h-6 text-surface-500 animate-spin" />
+              ) : previewFile.contentType.startsWith('image/') && previewUrl ? (
+                <img
+                  src={previewUrl}
+                  alt={previewFile.name}
+                  className="max-w-full max-h-[70vh] object-contain rounded"
+                />
+              ) : previewFile.contentType === 'application/pdf' && previewUrl ? (
+                <iframe
+                  src={previewUrl}
+                  className="w-full rounded border-0"
+                  style={{ height: '70vh' }}
+                  title={previewFile.name}
+                />
+              ) : previewFile.contentType.startsWith('video/') && previewUrl ? (
+                <video src={previewUrl} controls className="max-w-full max-h-[70vh] rounded" />
+              ) : previewFile.contentType.startsWith('audio/') && previewUrl ? (
+                <audio src={previewUrl} controls className="w-full" />
+              ) : previewText !== null ? (
+                <pre className="text-xs text-surface-300 font-mono whitespace-pre-wrap max-w-full overflow-auto w-full text-left" style={{ maxHeight: '70vh' }}>
+                  {previewText}
+                </pre>
+              ) : (
+                <div className="text-center">
+                  <FileIcon contentType={previewFile.contentType} className="w-12 h-12 text-surface-600 mx-auto mb-3" />
+                  <p className="text-surface-400 text-sm">No preview available</p>
+                  <button
+                    onClick={() => handleDownload(previewFile)}
+                    className="mt-3 btn-primary text-sm px-4 py-2 inline-flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Move Modal ─────────────────────────────────────────────────── */}
+      {moveFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-sm bg-surface-900 border border-surface-700 rounded-lg shadow-xl mx-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-surface-800">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-white">Move File</p>
+                <p className="text-xs text-surface-500 truncate mt-0.5">{moveFile.name}</p>
+              </div>
+              <button
+                onClick={() => setMoveFile(null)}
+                className="p-1.5 rounded text-surface-500 hover:text-white hover:bg-surface-800 transition-colors ml-3 shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="max-h-72 overflow-y-auto py-1">
+              {allFoldersQuery.isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-5 h-5 text-surface-500 animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => moveFileMutation.mutate({ id: moveFile.id, targetFolderId: null })}
+                    disabled={moveFile.folderId === null || moveFileMutation.isPending}
+                    className={`w-full flex items-center gap-3 px-5 py-3 text-sm transition-colors ${
+                      moveFile.folderId === null
+                        ? 'text-surface-600 cursor-not-allowed'
+                        : 'text-surface-300 hover:text-white hover:bg-surface-800/60'
+                    }`}
+                  >
+                    <Home className="w-4 h-4 shrink-0" />
+                    Root
+                    {moveFile.folderId === null && (
+                      <span className="text-xs text-surface-600 ml-auto">current</span>
+                    )}
+                  </button>
+
+                  {(allFoldersQuery.data ?? [])
+                    .filter((f) => f.id !== moveFile.folderId)
+                    .map((folder) => (
+                      <button
+                        key={folder.id}
+                        onClick={() => moveFileMutation.mutate({ id: moveFile.id, targetFolderId: folder.id })}
+                        disabled={moveFileMutation.isPending}
+                        className="w-full flex items-center gap-3 px-5 py-3 text-sm text-surface-300 hover:text-white hover:bg-surface-800/60 transition-colors"
+                      >
+                        <Folder className="w-4 h-4 shrink-0 text-surface-400" />
+                        <span className="truncate">{folder.name}</span>
+                      </button>
+                    ))}
+                </>
+              )}
+            </div>
+
+            {moveFileMutation.isError && (
+              <p className="text-xs text-surface-400 px-5 pb-3">
+                {(moveFileMutation.error as Error)?.message ?? 'Failed to move file'}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Version History Modal ──────────────────────────────────────── */}
       {versionFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="w-full max-w-md bg-surface-900 border border-surface-700 rounded-lg shadow-xl mx-4">
-            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-surface-800">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-white">Version History</p>
@@ -628,7 +956,6 @@ export function FilesPage() {
               </button>
             </div>
 
-            {/* Version list */}
             <div className="max-h-80 overflow-y-auto">
               {versionsQuery.isLoading ? (
                 <div className="flex justify-center py-8">
@@ -687,11 +1014,11 @@ export function FilesPage() {
           </div>
         </div>
       )}
+
       {/* ── Share Modal ───────────────────────────────────────────────── */}
       {shareFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="w-full max-w-md bg-surface-900 border border-surface-700 rounded-lg shadow-xl mx-4">
-            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-surface-800">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-white">Share File</p>
@@ -705,7 +1032,6 @@ export function FilesPage() {
               </button>
             </div>
 
-            {/* Link list */}
             <div className="max-h-64 overflow-y-auto">
               {sharesQuery.isLoading ? (
                 <div className="flex justify-center py-8">
@@ -755,7 +1081,6 @@ export function FilesPage() {
               )}
             </div>
 
-            {/* Create form */}
             {showShareForm ? (
               <div className="px-5 py-4 border-t border-surface-800 space-y-3">
                 <div>

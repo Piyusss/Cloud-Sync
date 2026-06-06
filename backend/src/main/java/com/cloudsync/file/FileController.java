@@ -1,5 +1,7 @@
 package com.cloudsync.file;
 
+import com.cloudsync.common.RenameRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -67,6 +69,22 @@ public class FileController {
                         "attachment; filename*=UTF-8''" + encodedName)
                 .header(HttpHeaders.CONTENT_LENGTH, dto.getSize().toString())
                 .body(new InputStreamResource(stream));
+    }
+
+    @PatchMapping("/{fileId}")
+    public ResponseEntity<FileDto> rename(
+            @PathVariable UUID fileId,
+            @Valid @RequestBody RenameRequest request,
+            @AuthenticationPrincipal UUID userId) {
+        return ResponseEntity.ok(fileService.rename(fileId, userId, request.getName()));
+    }
+
+    @PatchMapping("/{fileId}/move")
+    public ResponseEntity<FileDto> move(
+            @PathVariable UUID fileId,
+            @RequestBody MoveFileRequest request,
+            @AuthenticationPrincipal UUID userId) {
+        return ResponseEntity.ok(fileService.move(fileId, userId, request.getFolderId()));
     }
 
     @DeleteMapping("/{fileId}")

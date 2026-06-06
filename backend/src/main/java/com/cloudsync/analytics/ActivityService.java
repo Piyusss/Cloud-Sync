@@ -22,6 +22,8 @@ public class ActivityService {
     public static final String VERSION_RESTORE   = "VERSION_RESTORE";
     public static final String RESTORE           = "RESTORE";
     public static final String PERMANENT_DELETE  = "PERMANENT_DELETE";
+    public static final String RENAME            = "RENAME";
+    public static final String MOVE              = "MOVE";
 
     /** Fire-and-forget activity log — never throws, never blocks the caller. */
     public void log(UUID userId, String action, String fileName, Long fileSize) {
