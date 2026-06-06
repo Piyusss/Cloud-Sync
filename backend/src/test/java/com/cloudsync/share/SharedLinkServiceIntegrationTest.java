@@ -71,13 +71,13 @@ class SharedLinkServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        sharedUserId = UUID.randomUUID();
-        userRepository.save(User.builder()
-            .id(sharedUserId)
-            .email("test-" + sharedUserId + "@example.com")
+        // Let DB generate the UUID (em.persist not em.merge)
+        User user = userRepository.saveAndFlush(User.builder()
+            .email("test-" + UUID.randomUUID() + "@example.com")
             .build());
+        sharedUserId = user.getId();
 
-        FileEntity file = fileRepository.save(FileEntity.builder()
+        FileEntity file = fileRepository.saveAndFlush(FileEntity.builder()
             .userId(sharedUserId)
             .name("test-file.txt")
             .size(1024L)
@@ -89,7 +89,7 @@ class SharedLinkServiceIntegrationTest {
 
     @Test
     void expiredLink_throwsNotFoundException() {
-        SharedLinkEntity link = sharedLinkRepository.save(SharedLinkEntity.builder()
+        SharedLinkEntity link = sharedLinkRepository.saveAndFlush(SharedLinkEntity.builder()
             .fileId(sharedFileId)
             .userId(sharedUserId)
             .token("expired-" + UUID.randomUUID())
@@ -104,7 +104,7 @@ class SharedLinkServiceIntegrationTest {
     @Test
     void wrongPassword_throwsPasswordRequiredException() {
         String hash = passwordEncoder.encode("correct");
-        SharedLinkEntity link = sharedLinkRepository.save(SharedLinkEntity.builder()
+        SharedLinkEntity link = sharedLinkRepository.saveAndFlush(SharedLinkEntity.builder()
             .fileId(sharedFileId)
             .userId(sharedUserId)
             .token("pw-" + UUID.randomUUID())
@@ -119,7 +119,7 @@ class SharedLinkServiceIntegrationTest {
     @Test
     void correctPassword_returnsFileEntity() {
         String hash = passwordEncoder.encode("secret");
-        SharedLinkEntity link = sharedLinkRepository.save(SharedLinkEntity.builder()
+        SharedLinkEntity link = sharedLinkRepository.saveAndFlush(SharedLinkEntity.builder()
             .fileId(sharedFileId)
             .userId(sharedUserId)
             .token("ok-" + UUID.randomUUID())

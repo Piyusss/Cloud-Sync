@@ -65,22 +65,27 @@ class FileServiceIntegrationTest {
     @Autowired FileVersionRepository versionRepository;
     @Autowired UserRepository userRepository;
 
-    private static final UUID USER_ID = UUID.randomUUID();
+    // Instance field — new UUID per test instance
+    private UUID userId;
 
     @BeforeEach
     void setUp() {
-        createUser(USER_ID);
+        // Let DB generate the UUID (em.persist not em.merge)
+        User saved = userRepository.saveAndFlush(User.builder()
+            .email("test-" + UUID.randomUUID() + "@example.com")
+            .build());
+        userId = saved.getId();
 
-        User user = mock(User.class);
-        lenient().when(user.getStorageUsed()).thenReturn(0L);
-        lenient().when(user.getStorageLimit()).thenReturn(5_368_709_120L);
-        lenient().when(userService.findById(any())).thenReturn(user);
+        User mockUser = mock(User.class);
+        lenient().when(mockUser.getStorageUsed()).thenReturn(0L);
+        lenient().when(mockUser.getStorageLimit()).thenReturn(5_368_709_120L);
+        lenient().when(userService.findById(any())).thenReturn(mockUser);
     }
 
     @Test
     void newFile_persistsAndCreatesVersionOne() {
         FileDto result = fileService.createOrUpdateFile(
-            "report.txt", 1024L, "text/plain", null, USER_ID, "key/v1", null, false
+            "report.txt", 1024L, "text/plain", null, userId, "key/v1", null, false
         );
 
         assertNotNull(result.getId());
@@ -88,7 +93,7 @@ class FileServiceIntegrationTest {
         assertEquals(1024L, result.getSize());
 
         FileEntity stored = fileRepository
-            .findByIdAndUserIdAndIsDeletedFalse(result.getId(), USER_ID)
+            .findByIdAndUserIdAndIsDeletedFalse(result.getId(), userId)
             .orElseThrow();
         assertEquals("report.txt", stored.getName());
         assertEquals(1L, versionRepository.countByFileId(result.getId()));
@@ -96,14 +101,13 @@ class FileServiceIntegrationTest {
 
     @Test
     void sameFilenameUploadedTwice_addsVersion() {
-        UUID userId = UUID.randomUUID();
-        createUser(userId);
+        UUID secondUserId = createUser();
 
         FileDto v1 = fileService.createOrUpdateFile(
-            "doc.txt", 512L, "text/plain", null, userId, "key/v1", null, false
+            "doc.txt", 512L, "text/plain", null, secondUserId, "key/v1", null, false
         );
         FileDto v2 = fileService.createOrUpdateFile(
-            "doc.txt", 1024L, "text/plain", null, userId, "key/v2", null, false
+            "doc.txt", 1024L, "text/plain", null, secondUserId, "key/v2", null, false
         );
 
         assertEquals(v1.getId(), v2.getId(), "Version upload keeps the same file ID");
@@ -113,36 +117,34 @@ class FileServiceIntegrationTest {
 
     @Test
     void deduplicated_doesNotUpdateStorage() {
-        UUID userId = UUID.randomUUID();
-        createUser(userId);
+        UUID secondUserId = createUser();
 
         fileService.createOrUpdateFile(
-            "dup.jpg", 2048L, "image/jpeg", null, userId, "key/shared", null, true
+            "dup.jpg", 2048L, "image/jpeg", null, secondUserId, "key/shared", null, true
         );
 
-        verify(userService, never()).updateStorageUsed(eq(userId), anyLong());
+        verify(userService, never()).updateStorageUsed(eq(secondUserId), anyLong());
     }
 
     @Test
     void storageQuotaExceeded_throwsStorageQuotaException() {
+        UUID fullUserId = createUser();
+
         User fullUser = mock(User.class);
         when(fullUser.getStorageUsed()).thenReturn(5_368_709_120L);
         when(fullUser.getStorageLimit()).thenReturn(5_368_709_120L);
-        UUID userId = UUID.randomUUID();
-        createUser(userId);
-        when(userService.findById(userId)).thenReturn(fullUser);
+        when(userService.findById(fullUserId)).thenReturn(fullUser);
 
         assertThrows(StorageQuotaException.class, () ->
             fileService.createOrUpdateFile(
-                "big.zip", 1_000_000L, "application/zip", null, userId, "key/big", null, false
+                "big.zip", 1_000_000L, "application/zip", null, fullUserId, "key/big", null, false
             )
         );
     }
 
-    private void createUser(UUID userId) {
-        userRepository.save(User.builder()
-            .id(userId)
-            .email("test-" + userId + "@example.com")
-            .build());
+    private UUID createUser() {
+        return userRepository.saveAndFlush(User.builder()
+            .email("extra-" + UUID.randomUUID() + "@example.com")
+            .build()).getId();
     }
 }
