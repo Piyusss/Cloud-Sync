@@ -66,6 +66,10 @@ public class ChunkUploadService {
                         req.getFileName(), req.getFileSize(), req.getContentType(),
                         req.getFolderId(), userId, pf.getStorageKey(), pf.getId(), true);
 
+                // Dedup still creates a new file row — evict the cached listing so
+                // it shows up immediately (mirrors complete()).
+                fileService.evictFileCaches(userId, req.getFolderId());
+
                 return InitUploadResponse.builder()
                         .duplicate(true)
                         .fileItem(fileItem)
