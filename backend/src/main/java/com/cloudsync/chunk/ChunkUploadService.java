@@ -1,6 +1,9 @@
 package com.cloudsync.chunk;
 
 import com.cloudsync.analytics.ActivityService;
+import com.cloudsync.common.BadRequestException;
+import com.cloudsync.common.NotFoundException;
+import com.cloudsync.common.StorageQuotaException;
 import com.cloudsync.notification.NotificationService;
 import com.cloudsync.file.FileDto;
 import com.cloudsync.file.FileRepository;
@@ -74,7 +77,7 @@ public class ChunkUploadService {
         // ── Normal path ──────────────────────────────────────────────────────
         User user = userService.findById(userId);
         if (user.getStorageUsed() + req.getFileSize() > user.getStorageLimit()) {
-            throw new RuntimeException("Storage limit exceeded. Available: "
+            throw new StorageQuotaException("Storage limit exceeded. Available: "
                     + (user.getStorageLimit() - user.getStorageUsed()) + " bytes");
         }
 
@@ -101,10 +104,10 @@ public class ChunkUploadService {
     public void uploadChunk(UUID uploadId, int chunkIndex, MultipartFile chunkData, UUID userId) {
         UploadSessionEntity session = sessionRepository
                 .findByIdAndUserIdAndStatus(uploadId, userId, "in_progress")
-                .orElseThrow(() -> new RuntimeException("Upload session not found or already completed"));
+                .orElseThrow(() -> new NotFoundException("Upload session not found or already completed"));
 
         if (chunkIndex < 0 || chunkIndex >= session.getTotalChunks()) {
-            throw new RuntimeException("Invalid chunk index: " + chunkIndex);
+            throw new BadRequestException("Invalid chunk index: " + chunkIndex);
         }
 
         // Idempotent: skip if already received (supports retry)
@@ -138,7 +141,7 @@ public class ChunkUploadService {
 
     public UploadStatusDto status(UUID uploadId, UUID userId) {
         UploadSessionEntity session = sessionRepository.findByIdAndUserId(uploadId, userId)
-                .orElseThrow(() -> new RuntimeException("Upload session not found"));
+                .orElseThrow(() -> new NotFoundException("Upload session not found"));
 
         List<Integer> uploaded = chunkRepository.findUploadedChunkIndexes(uploadId);
 
@@ -158,7 +161,7 @@ public class ChunkUploadService {
     public FileDto complete(UUID uploadId, UUID userId) {
         UploadSessionEntity session = sessionRepository
                 .findByIdAndUserIdAndStatus(uploadId, userId, "in_progress")
-                .orElseThrow(() -> new RuntimeException("Upload session not found or already completed"));
+                .orElseThrow(() -> new NotFoundException("Upload session not found or already completed"));
 
         long received = chunkRepository.countByUploadId(uploadId);
         if (received != session.getTotalChunks()) {
@@ -201,10 +204,10 @@ public class ChunkUploadService {
     @Transactional
     public void cancel(UUID uploadId, UUID userId) {
         UploadSessionEntity session = sessionRepository.findByIdAndUserId(uploadId, userId)
-                .orElseThrow(() -> new RuntimeException("Upload session not found"));
+                .orElseThrow(() -> new NotFoundException("Upload session not found"));
 
         if ("completed".equals(session.getStatus())) {
-            throw new RuntimeException("Cannot cancel a completed upload");
+            throw new BadRequestException("Cannot cancel a completed upload");
         }
 
         List<UploadChunkEntity> chunks = chunkRepository.findByUploadIdOrderByChunkIndexAsc(uploadId);

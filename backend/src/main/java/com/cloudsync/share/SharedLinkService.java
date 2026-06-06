@@ -1,6 +1,8 @@
 package com.cloudsync.share;
 
 import com.cloudsync.analytics.ActivityService;
+import com.cloudsync.common.ForbiddenException;
+import com.cloudsync.common.NotFoundException;
 import com.cloudsync.notification.NotificationService;
 import com.cloudsync.file.FileEntity;
 import com.cloudsync.file.FileRepository;
@@ -50,7 +52,7 @@ public class SharedLinkService {
     @Transactional
     public SharedLinkDto create(UUID fileId, UUID userId, CreateShareLinkRequest req) {
         fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new NotFoundException("File not found"));
 
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
@@ -115,7 +117,7 @@ public class SharedLinkService {
         SharedLinkEntity link = findLinkOrThrow(token);
         FileEntity file = fileRepository.findById(link.getFileId())
                 .filter(f -> !f.getIsDeleted())
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new NotFoundException("File not found"));
         return PublicFileInfoDto.builder()
                 .fileName(file.getName())
                 .size(file.getSize())
@@ -138,7 +140,7 @@ public class SharedLinkService {
 
         FileEntity file = fileRepository.findById(link.getFileId())
                 .filter(f -> !f.getIsDeleted())
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new NotFoundException("File not found"));
 
         link.setDownloadCount(link.getDownloadCount() + 1);
         sharedLinkRepository.save(link);
@@ -161,9 +163,9 @@ public class SharedLinkService {
     @Transactional
     public void delete(String token, UUID userId) {
         SharedLinkEntity link = sharedLinkRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Link not found"));
+                .orElseThrow(() -> new NotFoundException("Link not found"));
         if (!link.getUserId().equals(userId)) {
-            throw new RuntimeException("Not authorized");
+            throw new ForbiddenException("Not authorized");
         }
         sharedLinkRepository.delete(link);
     }
@@ -172,9 +174,9 @@ public class SharedLinkService {
 
     private SharedLinkEntity findLinkOrThrow(String token) {
         SharedLinkEntity link = sharedLinkRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Link not found or expired"));
+                .orElseThrow(() -> new NotFoundException("Link not found or expired"));
         if (link.getExpiresAt() != null && link.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("This link has expired");
+            throw new NotFoundException("This link has expired");
         }
         return link;
     }

@@ -30,7 +30,18 @@ export function TrashPage() {
 
   const restoreMutation = useMutation({
     mutationFn: (fileId: string) => trashApi.restore(fileId),
-    onSuccess: () => {
+    onMutate: async (fileId) => {
+      await queryClient.cancelQueries({ queryKey: ['trash'] });
+      const previous = queryClient.getQueryData<TrashItem[]>(['trash']);
+      queryClient.setQueryData<TrashItem[]>(['trash'], (old) =>
+        old?.filter((f) => f.id !== fileId) ?? []
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) queryClient.setQueryData(['trash'], context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['trash'] });
       queryClient.invalidateQueries({ queryKey: ['files'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
@@ -39,7 +50,18 @@ export function TrashPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (fileId: string) => trashApi.delete(fileId),
-    onSuccess: () => {
+    onMutate: async (fileId) => {
+      await queryClient.cancelQueries({ queryKey: ['trash'] });
+      const previous = queryClient.getQueryData<TrashItem[]>(['trash']);
+      queryClient.setQueryData<TrashItem[]>(['trash'], (old) =>
+        old?.filter((f) => f.id !== fileId) ?? []
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) queryClient.setQueryData(['trash'], context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['trash'] });
       setConfirmDelete(null);
     },
@@ -47,7 +69,16 @@ export function TrashPage() {
 
   const emptyMutation = useMutation({
     mutationFn: () => trashApi.empty(),
-    onSuccess: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['trash'] });
+      const previous = queryClient.getQueryData<TrashItem[]>(['trash']);
+      queryClient.setQueryData<TrashItem[]>(['trash'], []);
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['trash'], context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['trash'] });
       setConfirmEmpty(false);
     },

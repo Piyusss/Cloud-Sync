@@ -1,6 +1,8 @@
 package com.cloudsync.file;
 
 import com.cloudsync.analytics.ActivityService;
+import com.cloudsync.common.BadRequestException;
+import com.cloudsync.common.NotFoundException;
 import com.cloudsync.user.UserService;
 import io.minio.MinioClient;
 import io.minio.RemoveObjectArgs;
@@ -31,7 +33,7 @@ public class FileVersionService {
 
     public List<FileVersionDto> getVersions(UUID fileId, UUID userId) {
         FileEntity file = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new NotFoundException("File not found"));
 
         return versionRepository.findByFileIdOrderByVersionDesc(fileId).stream()
                 .map(v -> toDto(v, v.getStorageKey().equals(file.getStorageKey())))
@@ -41,10 +43,10 @@ public class FileVersionService {
     @Transactional
     public FileDto restore(UUID fileId, UUID versionId, UUID userId) {
         FileEntity file = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new NotFoundException("File not found"));
 
         FileVersionEntity target = versionRepository.findByIdAndFileId(versionId, fileId)
-                .orElseThrow(() -> new RuntimeException("Version not found"));
+                .orElseThrow(() -> new NotFoundException("Version not found"));
 
         if (target.getStorageKey().equals(file.getStorageKey())) {
             return fileService.toDto(file); // already current
@@ -63,17 +65,17 @@ public class FileVersionService {
     @Transactional
     public void deleteVersion(UUID fileId, UUID versionId, UUID userId) {
         FileEntity file = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new NotFoundException("File not found"));
 
         FileVersionEntity version = versionRepository.findByIdAndFileId(versionId, fileId)
-                .orElseThrow(() -> new RuntimeException("Version not found"));
+                .orElseThrow(() -> new NotFoundException("Version not found"));
 
         if (version.getStorageKey().equals(file.getStorageKey())) {
-            throw new RuntimeException("Cannot delete the current version");
+            throw new BadRequestException("Cannot delete the current version");
         }
 
         if (versionRepository.countByFileId(fileId) <= 1) {
-            throw new RuntimeException("Cannot delete the only version");
+            throw new BadRequestException("Cannot delete the only version");
         }
 
         try {

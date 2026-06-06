@@ -1,6 +1,8 @@
 package com.cloudsync.trash;
 
 import com.cloudsync.analytics.ActivityService;
+import com.cloudsync.common.NotFoundException;
+import com.cloudsync.common.StorageQuotaException;
 import com.cloudsync.file.FileEntity;
 import com.cloudsync.file.FileRepository;
 import com.cloudsync.file.FileService;
@@ -69,12 +71,12 @@ public class TrashService {
     @Transactional
     public TrashItemDto restore(UUID fileId, UUID userId) {
         FileEntity file = fileRepository.findByIdAndUserIdAndIsDeletedTrue(fileId, userId)
-                .orElseThrow(() -> new RuntimeException("File not found in trash"));
+                .orElseThrow(() -> new NotFoundException("File not found in trash"));
 
         // Check storage limit
         var user = userService.findById(userId);
         if (user.getStorageUsed() + file.getSize() > user.getStorageLimit()) {
-            throw new RuntimeException("Storage limit exceeded — cannot restore file");
+            throw new StorageQuotaException("Storage limit exceeded — cannot restore file");
         }
 
         // Re-increment physical ref_count (was decremented on soft-delete)
@@ -103,7 +105,7 @@ public class TrashService {
     @Transactional
     public void hardDelete(UUID fileId, UUID userId) {
         FileEntity file = fileRepository.findByIdAndUserIdAndIsDeletedTrue(fileId, userId)
-                .orElseThrow(() -> new RuntimeException("File not found in trash"));
+                .orElseThrow(() -> new NotFoundException("File not found in trash"));
         activityService.log(userId, ActivityService.PERMANENT_DELETE, file.getName(), file.getSize());
         hardDeleteInternal(file);
     }

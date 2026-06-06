@@ -1,6 +1,8 @@
 package com.cloudsync.file;
 
 import com.cloudsync.analytics.ActivityService;
+import com.cloudsync.common.NotFoundException;
+import com.cloudsync.common.StorageQuotaException;
 import com.cloudsync.folder.FolderRepository;
 import com.cloudsync.notification.NotificationService;
 import com.cloudsync.user.User;
@@ -75,7 +77,7 @@ public class FileService {
         long delta = existing.map(e -> file.getSize() - e.getSize()).orElse(file.getSize());
         User user = userService.findById(userId);
         if (delta > 0 && user.getStorageUsed() + delta > user.getStorageLimit()) {
-            throw new RuntimeException("Storage limit exceeded. Available: "
+            throw new StorageQuotaException("Storage limit exceeded. Available: "
                     + (user.getStorageLimit() - user.getStorageUsed()) + " bytes");
         }
 
@@ -173,7 +175,7 @@ public class FileService {
     @Transactional
     public FileDto rename(UUID fileId, UUID userId, String newName) {
         FileEntity file = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new NotFoundException("File not found"));
         clearFilesCacheEntry(userId, file.getFolderId());
         file.setName(newName.trim());
         activityService.log(userId, ActivityService.RENAME, newName.trim(), file.getSize());
@@ -185,11 +187,11 @@ public class FileService {
     @Transactional
     public FileDto move(UUID fileId, UUID userId, UUID targetFolderId) {
         FileEntity file = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new NotFoundException("File not found"));
 
         if (targetFolderId != null) {
             folderRepository.findByIdAndUserId(targetFolderId, userId)
-                    .orElseThrow(() -> new RuntimeException("Target folder not found"));
+                    .orElseThrow(() -> new NotFoundException("Folder not found"));
         }
 
         UUID oldFolderId = file.getFolderId();
@@ -219,14 +221,14 @@ public class FileService {
 
     public FileDto getFile(UUID fileId, UUID userId) {
         return toDto(fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
-                .orElseThrow(() -> new RuntimeException("File not found")));
+                .orElseThrow(() -> new NotFoundException("File not found")));
     }
 
     // ── Download ─────────────────────────────────────────────────────────────
 
     public InputStream download(UUID fileId, UUID userId) {
         FileEntity file = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new NotFoundException("File not found"));
         activityService.log(userId, ActivityService.DOWNLOAD, file.getName(), file.getSize());
         try {
             return minioClient.getObject(GetObjectArgs.builder()
@@ -242,7 +244,7 @@ public class FileService {
     @Transactional
     public void delete(UUID fileId, UUID userId) {
         FileEntity file = fileRepository.findByIdAndUserIdAndIsDeletedFalse(fileId, userId)
-                .orElseThrow(() -> new RuntimeException("File not found"));
+                .orElseThrow(() -> new NotFoundException("File not found"));
 
         // Decrement physical ref_count
         if (file.getPhysicalFileId() != null) {

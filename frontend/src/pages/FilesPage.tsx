@@ -167,7 +167,18 @@ export function FilesPage() {
 
   const deleteFolderMutation = useMutation({
     mutationFn: (id: string) => folderApi.delete(id),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['folders', folderId ?? 'root'] });
+      const previous = queryClient.getQueryData<FolderItem[]>(['folders', folderId ?? 'root']);
+      queryClient.setQueryData<FolderItem[]>(['folders', folderId ?? 'root'], (old) =>
+        old?.filter((f) => f.id !== id) ?? []
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) queryClient.setQueryData(['folders', folderId ?? 'root'], context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       queryClient.invalidateQueries({ queryKey: ['files'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
@@ -177,7 +188,18 @@ export function FilesPage() {
 
   const deleteFileMutation = useMutation({
     mutationFn: (id: string) => fileApi.delete(id),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['files', folderId ?? 'root'] });
+      const previous = queryClient.getQueryData<FileItem[]>(['files', folderId ?? 'root']);
+      queryClient.setQueryData<FileItem[]>(['files', folderId ?? 'root'], (old) =>
+        old?.filter((f) => f.id !== id) ?? []
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) queryClient.setQueryData(['files', folderId ?? 'root'], context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['files'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
       setDeleteFileConfirm(null);
@@ -185,18 +207,38 @@ export function FilesPage() {
   });
 
   const renameFileMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      fileApi.rename(id, name),
-    onSuccess: () => {
+    mutationFn: ({ id, name }: { id: string; name: string }) => fileApi.rename(id, name),
+    onMutate: async ({ id, name }) => {
+      await queryClient.cancelQueries({ queryKey: ['files', folderId ?? 'root'] });
+      const previous = queryClient.getQueryData<FileItem[]>(['files', folderId ?? 'root']);
+      queryClient.setQueryData<FileItem[]>(['files', folderId ?? 'root'], (old) =>
+        old?.map((f) => (f.id === id ? { ...f, name } : f)) ?? []
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['files', folderId ?? 'root'], context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['files'] });
       setRenameFile(null);
     },
   });
 
   const renameFolderMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      folderApi.rename(id, name),
-    onSuccess: () => {
+    mutationFn: ({ id, name }: { id: string; name: string }) => folderApi.rename(id, name),
+    onMutate: async ({ id, name }) => {
+      await queryClient.cancelQueries({ queryKey: ['folders', folderId ?? 'root'] });
+      const previous = queryClient.getQueryData<FolderItem[]>(['folders', folderId ?? 'root']);
+      queryClient.setQueryData<FolderItem[]>(['folders', folderId ?? 'root'], (old) =>
+        old?.map((f) => (f.id === id ? { ...f, name } : f)) ?? []
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['folders', folderId ?? 'root'], context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       setRenameFolder(null);
     },
@@ -205,7 +247,18 @@ export function FilesPage() {
   const moveFileMutation = useMutation({
     mutationFn: ({ id, targetFolderId }: { id: string; targetFolderId: string | null }) =>
       fileApi.move(id, targetFolderId),
-    onSuccess: () => {
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: ['files', folderId ?? 'root'] });
+      const previous = queryClient.getQueryData<FileItem[]>(['files', folderId ?? 'root']);
+      queryClient.setQueryData<FileItem[]>(['files', folderId ?? 'root'], (old) =>
+        old?.filter((f) => f.id !== id) ?? []
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['files', folderId ?? 'root'], context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['files'] });
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       setMoveFile(null);

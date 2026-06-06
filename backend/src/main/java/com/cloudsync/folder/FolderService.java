@@ -1,6 +1,7 @@
 package com.cloudsync.folder;
 
 import com.cloudsync.analytics.ActivityService;
+import com.cloudsync.common.NotFoundException;
 import com.cloudsync.file.FileEntity;
 import com.cloudsync.file.FileRepository;
 import com.cloudsync.user.UserService;
@@ -30,7 +31,7 @@ public class FolderService {
     public FolderDto create(CreateFolderRequest request, UUID userId) {
         if (request.getParentFolderId() != null) {
             folderRepository.findByIdAndUserId(request.getParentFolderId(), userId)
-                    .orElseThrow(() -> new RuntimeException("Parent folder not found"));
+                    .orElseThrow(() -> new NotFoundException("Parent folder not found"));
         }
 
         FolderEntity folder = FolderEntity.builder()
@@ -65,7 +66,7 @@ public class FolderService {
 
         while (current != null) {
             FolderEntity folder = folderRepository.findByIdAndUserId(current, userId)
-                    .orElseThrow(() -> new RuntimeException("Folder not found"));
+                    .orElseThrow(() -> new NotFoundException("Folder not found"));
             path.add(0, toDto(folder));
             current = folder.getParentFolderId();
         }
@@ -76,7 +77,7 @@ public class FolderService {
     @Transactional
     public void delete(UUID folderId, UUID userId) {
         FolderEntity root = folderRepository.findByIdAndUserId(folderId, userId)
-                .orElseThrow(() -> new RuntimeException("Folder not found"));
+                .orElseThrow(() -> new NotFoundException("Folder not found"));
         activityService.log(userId, ActivityService.FOLDER_DELETE, root.getName(), null);
         evictFolderCache(userId, root.getParentFolderId());
 
@@ -112,7 +113,7 @@ public class FolderService {
     @Transactional
     public FolderDto rename(UUID folderId, UUID userId, String newName) {
         FolderEntity folder = folderRepository.findByIdAndUserId(folderId, userId)
-                .orElseThrow(() -> new RuntimeException("Folder not found"));
+                .orElseThrow(() -> new NotFoundException("Folder not found"));
         evictFolderCache(userId, folder.getParentFolderId());
         folder.setName(newName.trim());
         return toDtoWithCount(folderRepository.save(folder));
