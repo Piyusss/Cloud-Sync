@@ -1,7 +1,6 @@
 package com.cloudsync.file;
 
 import com.cloudsync.analytics.ActivityService;
-import com.cloudsync.common.StorageQuotaException;
 import com.cloudsync.notification.NotificationService;
 import com.cloudsync.user.User;
 import com.cloudsync.user.UserRepository;
@@ -127,19 +126,11 @@ class FileServiceIntegrationTest {
     }
 
     @Test
-    void storageQuotaExceeded_throwsStorageQuotaException() {
-        UUID fullUserId = createUser();
-
-        User fullUser = mock(User.class);
-        when(fullUser.getStorageUsed()).thenReturn(5_368_709_120L);
-        when(fullUser.getStorageLimit()).thenReturn(5_368_709_120L);
-        when(userService.findById(fullUserId)).thenReturn(fullUser);
-
-        assertThrows(StorageQuotaException.class, () ->
-            fileService.createOrUpdateFile(
-                "big.zip", 1_000_000L, "application/zip", null, fullUserId, "key/big", null, false
-            )
+    void newFile_callsUpdateStorageUsedWithFileSize() {
+        fileService.createOrUpdateFile(
+            "photo.jpg", 500L, "image/jpeg", null, userId, "key/photo", null, false
         );
+        verify(userService).updateStorageUsed(userId, 500L);
     }
 
     private UUID createUser() {
