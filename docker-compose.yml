@@ -1,24 +1,24 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: cloudvault-postgres
+    container_name: cloudsync-postgres
     environment:
-      POSTGRES_DB: cloudvault
-      POSTGRES_USER: cloudvault
-      POSTGRES_PASSWORD: cloudvault_secret
+      POSTGRES_DB: cloudsync
+      POSTGRES_USER: cloudsync
+      POSTGRES_PASSWORD: cloudsync_secret
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cloudvault"]
+      test: ["CMD-SHELL", "pg_isready -U cloudsync"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   minio:
     image: minio/minio:latest
-    container_name: cloudvault-minio
+    container_name: cloudsync-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -36,7 +36,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: cloudvault-redis
+    container_name: cloudsync-redis
     ports:
       - "6380:6379"
     volumes:

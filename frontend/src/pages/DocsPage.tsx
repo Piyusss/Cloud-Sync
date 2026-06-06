@@ -551,7 +551,7 @@ export function DocsPage() {
   participant P as Postgres
   B->>A: GET /api/files?folderId=… (Bearer JWT)
   A->>A: Verify JWT, resolve userId
-  A->>R: GET cloudvault:files::user:folder
+  A->>R: GET cloudsync:files::user:folder
   alt cache hit
     R-->>A: cached DTO list
   else cache miss
@@ -668,9 +668,9 @@ MinioClient  → S3-compatible object storage`}
                 never stale.
               </P>
               <Code title="cache keys">
-{`cloudvault:user-dto::<userId>          TTL 5m
-cloudvault:files::<userId>:<folder>    TTL 5m
-cloudvault:folders::<userId>:<parent>  TTL 10m`}
+{`cloudsync:user-dto::<userId>          TTL 5m
+cloudsync:files::<userId>:<folder>    TTL 5m
+cloudsync:folders::<userId>:<parent>  TTL 10m`}
               </Code>
               <Callout>
                 Cache invalidation is the hard part: self-invocation bypasses Spring’s proxy, so

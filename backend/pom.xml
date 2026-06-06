@@ -11,10 +11,10 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.cloudvault</groupId>
-    <artifactId>cloudvault-backend</artifactId>
+    <groupId>com.cloudsync</groupId>
+    <artifactId>cloudsync-backend</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <name>CloudVault Backend</name>
+    <name>Cloud Sync Backend</name>
     <description>Cloud storage platform backend</description>
 
     <properties>

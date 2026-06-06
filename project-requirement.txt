@@ -1,6 +1,6 @@
 Yes. If you're going to spend 2–4 months on a side project, I'd treat it like a real product and build it in phases.
 
-# Project: CloudVault (Online Cloud Storage Service)
+# Project: Cloud Sync (Online Cloud Storage Service)
 
 ## Goal
 
@@ -329,7 +329,7 @@ Generate public links.
 Example:
 
 ```text
-cloudvault.com/share/abc123
+cloudsync.app/share/abc123
 ```
 
 Tables:

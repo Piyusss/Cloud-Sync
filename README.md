@@ -1,4 +1,4 @@
-# CloudVault — Cloud Storage Platform
+# Cloud Sync — Cloud Storage Platform
 
 A full-stack cloud storage platform built with React, Spring Boot, PostgreSQL, MinIO, and Redis. Features chunked/resumable uploads, file versioning, SHA-256 deduplication, secure sharing, and real-time notifications.
 
@@ -65,7 +65,7 @@ The UI runs at `http://localhost:5173`.
 | Service | Username | Password |
 |---------|----------|----------|
 | MinIO | minioadmin | minioadmin123 |
-| PostgreSQL | cloudvault | cloudvault_secret |
+| PostgreSQL | cloudsync | cloudsync_secret |
 
 ## Project Structure
 
@@ -73,7 +73,7 @@ The UI runs at `http://localhost:5173`.
 GRAVITY-CLOUD/
 ├── backend/                    # Spring Boot API
 │   ├── pom.xml
-│   └── src/main/java/com/cloudvault/
+│   └── src/main/java/com/cloudsync/
 │       ├── auth/               # Authentication (JWT, login, register)
 │       ├── user/               # User management
 │       ├── config/             # Security, CORS, MinIO, Redis configs

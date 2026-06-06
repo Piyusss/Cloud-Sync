@@ -254,13 +254,13 @@ function RedisVisual() {
     <div className="space-y-3">
       {/* redis-cli terminal — the app's real cache keys */}
       <CodeBlock title="redis-cli · Upstash">
-        <div><span className={dim}>$</span> GET cloudvault:files::u42:root</div>
+        <div><span className={dim}>$</span> GET cloudsync:files::u42:root</div>
         <div className="text-white">  ↳ HIT · 8 ms</div>
         <div className="h-2.5" />
-        <div><span className={dim}>$</span> KEYS cloudvault:*</div>
-        <div className="text-surface-400">  1) cloudvault:user-dto::u42</div>
-        <div className="text-surface-400">  2) cloudvault:files::u42:root</div>
-        <div className="text-surface-400">  3) cloudvault:folders::u42:root</div>
+        <div><span className={dim}>$</span> KEYS cloudsync:*</div>
+        <div className="text-surface-400">  1) cloudsync:user-dto::u42</div>
+        <div className="text-surface-400">  2) cloudsync:files::u42:root</div>
+        <div className="text-surface-400">  3) cloudsync:folders::u42:root</div>
         <div className="h-2.5" />
         <div><span className={dim}># on upload / delete / move</span></div>
         <div><span className="text-white">@CacheEvict</span> <span className={dim}>→ keys invalidated</span></div>
@@ -620,7 +620,7 @@ export function LandingPage() {
               <span className="w-2.5 h-2.5 rounded-full bg-surface-700" />
               <span className="w-2.5 h-2.5 rounded-full bg-surface-700" />
               <div className="ml-3 px-3 py-1 rounded bg-surface-900 border border-surface-800 text-[11px] font-mono text-surface-500">
-                cloudvault.app/files
+                cloudsync.app/files
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr]">
