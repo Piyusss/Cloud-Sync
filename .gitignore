@@ -1,0 +1,18 @@
+# Secrets
+.env
+deployment.env
+
+# Build output
+backend/target/
+frontend/dist/
+
+# Dependencies
+frontend/node_modules/
+
+# Maven wrapper
+backend/.mvn/
+backend/mvnw.cmd
+
+# OS
+.DS_Store
+Thumbs.db
