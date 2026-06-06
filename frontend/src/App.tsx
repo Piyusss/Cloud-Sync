@@ -5,6 +5,7 @@ import { ClerkProvider, SignIn, SignUp } from '@clerk/clerk-react';
 import { Loader2 } from 'lucide-react';
 import { AuthProvider } from './auth/AuthContext';
 import { ThemeProvider } from './theme/ThemeProvider';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { AppLayout } from './components/layout/AppLayout';
 import { LandingPage } from './pages/LandingPage';
@@ -60,6 +61,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AuthProvider>
+            <ErrorBoundary>
             <Routes>
               {/* Clerk auth pages */}
               <Route
@@ -116,6 +118,7 @@ function App() {
 
               <Route path="*" element={<Navigate to="/files" replace />} />
             </Routes>
+            </ErrorBoundary>
           </AuthProvider>
         </BrowserRouter>
       </QueryClientProvider>
