@@ -67,34 +67,31 @@ describe('FilesPage upload state machine', () => {
     vi.mocked(api.folderApi.breadcrumb).mockResolvedValue({ data: [] } as any);
   });
 
-  it('renders an upload button', () => {
+  it('renders the upload drop zone', () => {
     renderFilesPage();
-    expect(screen.getByRole('button', { name: /upload/i })).toBeInTheDocument();
+    expect(screen.getByText(/drag & drop/i)).toBeInTheDocument();
   });
 
-  it('shows empty-state prompt when no files or folders exist', async () => {
+  it('shows empty-state message when no files or folders exist', async () => {
     renderFilesPage();
     await waitFor(() => {
-      expect(screen.getByText(/drag files here/i)).toBeInTheDocument();
+      expect(screen.getByText(/this folder is empty/i)).toBeInTheDocument();
     });
   });
 
   it('shows file name in list after API returns files', async () => {
     vi.mocked(api.fileApi.list).mockResolvedValue({
-      data: [
-        {
-          id: 'f1',
-          name: 'invoice.pdf',
-          size: 51200,
-          contentType: 'application/pdf',
-          folderId: null,
-          createdAt: new Date().toISOString(),
-        },
-      ],
+      data: [{
+        id: 'f1',
+        name: 'invoice.pdf',
+        size: 51200,
+        contentType: 'application/pdf',
+        folderId: null,
+        createdAt: new Date().toISOString(),
+      }],
     } as any);
 
     renderFilesPage();
-
     await waitFor(() => {
       expect(screen.getByText('invoice.pdf')).toBeInTheDocument();
     });
@@ -102,19 +99,16 @@ describe('FilesPage upload state machine', () => {
 
   it('shows folder name in list after API returns folders', async () => {
     vi.mocked(api.folderApi.list).mockResolvedValue({
-      data: [
-        {
-          id: 'folder-1',
-          name: 'Projects',
-          userId: 'user-1',
-          parentFolderId: null,
-          createdAt: new Date().toISOString(),
-        },
-      ],
+      data: [{
+        id: 'folder-1',
+        name: 'Projects',
+        userId: 'user-1',
+        parentFolderId: null,
+        createdAt: new Date().toISOString(),
+      }],
     } as any);
 
     renderFilesPage();
-
     await waitFor(() => {
       expect(screen.getByText('Projects')).toBeInTheDocument();
     });

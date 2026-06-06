@@ -35,7 +35,8 @@ import static org.mockito.Mockito.*;
         "minio.access-key=test-access",
         "minio.secret-key=test-secret",
         "minio.bucket=test-bucket",
-        "app.share-base-url=http://localhost:5173"
+        "app.share-base-url=http://localhost:5173",
+        "cors.allowed-origins=http://localhost:5173"
     }
 )
 @Testcontainers
