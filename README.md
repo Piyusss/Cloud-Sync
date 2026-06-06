@@ -109,18 +109,6 @@ Spring Boot API (JWT Auth)
        +------ WebSocket (notifications)
 ```
 
-## Features Roadmap
-
-- [x] **Week 1**: Authentication, Dashboard
-- [ ] **Week 2**: File Upload, Folder System
-- [ ] **Week 3**: Chunked/Resumable Uploads
-- [ ] **Week 4**: File Versioning
-- [ ] **Week 5**: Storage Deduplication
-- [ ] **Week 6**: Sharing, Search
-- [ ] **Week 7**: Analytics, Recycle Bin
-- [ ] **Week 8**: Background Jobs, Redis Caching
-- [ ] **Week 9**: WebSocket Notifications
-
 ## License
 
 Private project.
