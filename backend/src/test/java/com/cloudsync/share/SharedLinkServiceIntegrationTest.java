@@ -36,7 +36,8 @@ import static org.mockito.Mockito.*;
         "minio.secret-key=test-secret",
         "minio.bucket=test-bucket",
         "app.share-base-url=http://localhost:5173",
-        "cors.allowed-origins=http://localhost:5173"
+        "cors.allowed-origins=http://localhost:5173",
+        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration"
     }
 )
 @Testcontainers
